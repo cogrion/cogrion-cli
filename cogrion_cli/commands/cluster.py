@@ -8,6 +8,14 @@ from cogrion_cli.bootstrap.constants import CPLANE_AGENT_DEFAULT_VERSION, CPLANE
 app = typer.Typer(help="Manage your self-hosted cloud clusters")
 console = Console()
 
+_SUPPORTED_PROVIDERS = {"aws"}
+
+
+def _validate_provider(provider: str) -> None:
+    if provider not in _SUPPORTED_PROVIDERS:
+        console.print(f"[red]--provider {provider} is not yet supported — coming soon[/red]")
+        raise typer.Exit(1)
+
 
 def _run_bootstrap(
     token: str,
@@ -51,6 +59,9 @@ def list_clusters() -> None:
 
 @app.command("bootstrap")
 def bootstrap(
+    provider: str = typer.Option(
+        "aws", "--provider", help="Cloud provider (aws; alicloud/gcp/azure coming soon)"
+    ),
     token: str = typer.Option(
         ..., "--token", help="One-time bootstrap token from the control plane"
     ),
@@ -83,11 +94,15 @@ def bootstrap(
         False, "--skip-tls-verify", help="Disable TLS verification against the control plane"
     ),
 ) -> None:
-    """Bootstrap a tenant EKS cluster: IRSA roles, traefik, external-dns, and the cplane-agent.
+    """Bootstrap a tenant EKS cluster: registers with the control plane, then installs
+    traefik, external-dns, and the cplane-agent.
 
-    Assumes the cluster and its node group already exist (provisioned by
-    terraform-workspace-infra-aws) and only wires up what runs on top of it.
+    Assumes the cluster, node group, IRSA roles (bootstrap/cluster-agent/kubeblocks),
+    namespaces, and storage classes already exist — provisioned by
+    terraform-cogrion-aws-eks-managed-node-group. This command only handles the
+    delivery layer on top of that.
     """
+    _validate_provider(provider)
     _run_bootstrap(
         token=token,
         cluster_name=cluster_name,
@@ -104,6 +119,9 @@ def bootstrap(
 
 @app.command("upgrade")
 def upgrade(
+    provider: str = typer.Option(
+        "aws", "--provider", help="Cloud provider (aws; alicloud/gcp/azure coming soon)"
+    ),
     token: str = typer.Option(
         ..., "--token", help="One-time bootstrap token from the control plane"
     ),
@@ -138,6 +156,7 @@ def upgrade(
     Runs the exact same idempotent steps as `bootstrap` — safe to re-run.
     Confirmation is skipped by default since this targets an existing cluster.
     """
+    _validate_provider(provider)
     _run_bootstrap(
         token=token,
         cluster_name=cluster_name,

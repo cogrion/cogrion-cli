@@ -4,18 +4,37 @@ import sys
 
 from rich.console import Console
 
-from .addons import HelmAddon, helm_repos_for, make_external_dns
+from .addons import HelmAddon, helm_repos_for, make_external_dns, make_traefik
 from .constants import (
     CPLANE_AGENT_CHART,
     COGRION_SYSTEM_NAMESPACE,
     ECR_PUBLIC_REGISTRY,
-    QD_SECRET_NAMESPACE,
 )
 from .helm import ensure_helm_repos, helm_apply, is_externally_managed
-from .providers.aws import AWSProvider
 from .register import register_agent
 
 console = Console()
+
+
+def _check_namespace_exists(namespace: str, dry_run: bool) -> None:
+    """Read-only preflight — cogrion-cli no longer creates platform namespaces.
+
+    They're provisioned by terraform-cogrion-aws-eks-managed-node-group
+    alongside the IRSA roles/service-accounts this command relies on.
+    """
+    if dry_run:
+        console.print(f"[yellow]\\[kubectl] dry-run: check namespace {namespace} exists[/yellow]")
+        return
+    result = subprocess.run(
+        ["kubectl", "get", "namespace", namespace], capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"[kubectl] namespace '{namespace}' not found — run `tofu apply` in "
+            "terraform-cogrion-aws-eks-managed-node-group first to provision the "
+            "cluster's namespaces, IRSA roles, and service accounts."
+        )
+    console.print(f"\\[kubectl] namespace {namespace} found")
 
 
 def _ensure_namespace(namespace: str, dry_run: bool) -> None:
@@ -122,7 +141,7 @@ def run(
     console.print("=" * 60)
     console.print(f"  Cluster              : {cluster_name}  ({region})")
     console.print(f"  Control plane        : {control_plane_url}")
-    console.print(f"  Namespaces to ensure : {COGRION_SYSTEM_NAMESPACE}, {QD_SECRET_NAMESPACE}")
+    console.print(f"  Namespace (must exist): {COGRION_SYSTEM_NAMESPACE}")
     console.print("  Addons to install    : traefik, external-dns (+ dns-webhook)")
     console.print(f"  cplane-agent chart   : {agent_version}")
     console.print("=" * 60)
@@ -137,10 +156,9 @@ def run(
             console.print("\n[red]Error: Bootstrap cancelled.[/red]")
             sys.exit(1)
 
-    _ensure_namespace(COGRION_SYSTEM_NAMESPACE, dry_run=dry_run)
-    _ensure_namespace(QD_SECRET_NAMESPACE, dry_run=dry_run)
+    _check_namespace_exists(COGRION_SYSTEM_NAMESPACE, dry_run=dry_run)
 
-    registration = register_agent(
+    register_agent(
         control_plane_url=control_plane_url,
         token=token,
         namespace=COGRION_SYSTEM_NAMESPACE,
@@ -150,15 +168,6 @@ def run(
         region=region,
     )
 
-    provider = AWSProvider(
-        ext_account_id=registration.ext_account_id,
-        ext_workspace_id=registration.ext_workspace_id,
-        cluster_name=cluster_name,
-        region=region,
-        dry_run=dry_run,
-    )
-    provider.ensure_iam()
-
     _copy_secret_to_namespace(
         secret_name="cluster-agent-credentials",
         src_namespace=COGRION_SYSTEM_NAMESPACE,
@@ -166,8 +175,10 @@ def run(
         dry_run=dry_run,
     )
 
-    addons = provider.addons(traefik_subnets=traefik_subnets)
-    addons.append(make_external_dns(control_plane_url, webhook_tag=dns_webhook_tag))
+    addons = [
+        make_traefik(traefik_subnets),
+        make_external_dns(control_plane_url, webhook_tag=dns_webhook_tag),
+    ]
     _install_addons(addons, dry_run=dry_run)
 
     _ecr_login(region=region, dry_run=dry_run)

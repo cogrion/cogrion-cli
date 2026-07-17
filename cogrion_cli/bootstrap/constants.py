@@ -4,4 +4,3 @@ CPLANE_API_URL = "https://cplane.api.cogrion.com"
 ECR_PUBLIC_REGISTRY = "public.ecr.aws"
 
 COGRION_SYSTEM_NAMESPACE = "cogrion-system"
-QD_SECRET_NAMESPACE = "qd-secret"

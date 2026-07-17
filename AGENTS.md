@@ -20,12 +20,9 @@ cogrion_cli/
     register.py     # POST /agent/register → writes cluster-agent-credentials secret
     helm.py         # helm_apply() with stuck-release handling — the only place that shells out to helm
     addons.py       # traefik + external-dns(+dns-webhook) HelmAddon definitions
-    providers/
-      base.py       # BaseProvider ABC
-      aws/          # AWSProvider — IRSA roles only (bootstrap, cluster-agent);
-                     # node group/security group/kubeblocks stay Terraform's job
-        iam/         # IAM policy JSON, bundled into the wheel
 ```
+
+No AWS SDK (boto3) anywhere in this package — `bootstrap/` makes zero AWS API calls. IRSA roles, namespaces, service accounts, and storage classes are entirely `terraform-cogrion-aws-eks-managed-node-group`'s job; this package only does registration + Helm installs on top of what Terraform already provisioned. It's invoked two ways: a human running `cogrion cluster bootstrap` directly, or that same Terraform module's `tenant_bootstrap`-gated Job running it in-cluster via the `bootstrap-sa` IRSA identity — same command either way, just a different trigger.
 
 ## During development
 
@@ -39,5 +36,5 @@ cogrion_cli/
 - Every command must respect the global `--json` flag once it has real output — no `rich` formatting when `state.json_output` is set
 - Session/auth state goes through `config.py`'s `app_dir()`, never a hardcoded path
 - Version bumps: `make bump-patch` / `make bump-minor` / `make bump-major` — never edit `VERSION` or `pyproject.toml` by hand
-- `bootstrap/` deliberately does not touch: node group creation, security groups, launch templates (owned by `terraform-workspace-infra-aws`), or the KubeBlocks operator itself (installed later by `cplane-agent`'s KCL stacks) — only its IRSA role/namespace/service-accounts live in Terraform too, not here
+- `bootstrap/` deliberately does not touch: node group creation, IRSA roles, namespaces, storage classes (owned by `terraform-cogrion-aws-eks-managed-node-group`), or the KubeBlocks operator itself (installed later by `cplane-agent`'s KCL stacks) — it only preflight-checks that `cogrion-system` exists and fails clearly if it doesn't
 - Every `--dry-run` path in `bootstrap/` must be fully offline — no real AWS/kubectl/helm calls, not even read-only ones — so it can be exercised without live credentials
