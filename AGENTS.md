@@ -17,6 +17,11 @@ cogrion_cli/
     deploy.py       # `cogrion deploy ...`
 ```
 
+## During development
+
+- Install with `pipx install --editable .`
+- Editable install reflects local code changes immediately; no reinstall needed after editing a command
+
 ## Conventions
 
 - No comments unless the WHY is non-obvious

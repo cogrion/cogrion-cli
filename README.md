@@ -5,8 +5,10 @@ Developer CLI for the Cogrion BYOC platform — authentication, cluster linking,
 ## Install
 
 ```bash
-uv tool install --editable .
+pipx install --editable .
 ```
+
+Editable install picks up local code changes without reinstalling — restart your shell (or `hash -r`) if `cogrion` doesn't reflect a change.
 
 ## Usage
 
