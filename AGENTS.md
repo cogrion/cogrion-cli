@@ -13,8 +13,18 @@ cogrion_cli/
   state.py          # shared State dataclass (json_output flag, etc.)
   commands/
     auth.py         # `cogrion auth ...`
-    cluster.py      # `cogrion cluster ...`
+    cluster.py      # `cogrion cluster ...` — includes bootstrap/upgrade, wired to bootstrap/
     deploy.py       # `cogrion deploy ...`
+  bootstrap/        # tenant cluster bootstrap — ported from cogrion-bootstrap, trimmed
+    runner.py       # orchestrates the full bootstrap/upgrade flow
+    register.py     # POST /agent/register → writes cluster-agent-credentials secret
+    helm.py         # helm_apply() with stuck-release handling — the only place that shells out to helm
+    addons.py       # traefik + external-dns(+dns-webhook) HelmAddon definitions
+    providers/
+      base.py       # BaseProvider ABC
+      aws/          # AWSProvider — IRSA roles only (bootstrap, cluster-agent);
+                     # node group/security group/kubeblocks stay Terraform's job
+        iam/         # IAM policy JSON, bundled into the wheel
 ```
 
 ## During development
@@ -29,3 +39,5 @@ cogrion_cli/
 - Every command must respect the global `--json` flag once it has real output — no `rich` formatting when `state.json_output` is set
 - Session/auth state goes through `config.py`'s `app_dir()`, never a hardcoded path
 - Version bumps: `make bump-patch` / `make bump-minor` / `make bump-major` — never edit `VERSION` or `pyproject.toml` by hand
+- `bootstrap/` deliberately does not touch: node group creation, security groups, launch templates (owned by `terraform-workspace-infra-aws`), or the KubeBlocks operator itself (installed later by `cplane-agent`'s KCL stacks) — only its IRSA role/namespace/service-accounts live in Terraform too, not here
+- Every `--dry-run` path in `bootstrap/` must be fully offline — no real AWS/kubectl/helm calls, not even read-only ones — so it can be exercised without live credentials

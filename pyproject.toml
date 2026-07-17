@@ -8,6 +8,7 @@ dependencies = [
     "typer>=0.15.0",
     "rich>=13.9.0",
     "questionary>=2.0.0",
+    "boto3>=1.43.0",
 ]
 
 [project.scripts]
