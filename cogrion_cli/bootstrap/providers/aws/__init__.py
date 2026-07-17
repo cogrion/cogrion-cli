@@ -52,7 +52,9 @@ class AWSProvider(BaseProvider):
         self._cached_oidc_url: str = ""
         self._cached_account_id: str = ""
 
-    def addons(self, traefik_subnets: str = "", node_selector_set: dict | None = None) -> list[HelmAddon]:
+    def addons(
+        self, traefik_subnets: str = "", node_selector_set: dict | None = None
+    ) -> list[HelmAddon]:
         return [make_traefik(traefik_subnets)]
 
     def ensure_iam(self) -> dict[str, str]:

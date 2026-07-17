@@ -51,7 +51,9 @@ def list_clusters() -> None:
 
 @app.command("bootstrap")
 def bootstrap(
-    token: str = typer.Option(..., "--token", help="One-time bootstrap token from the control plane"),
+    token: str = typer.Option(
+        ..., "--token", help="One-time bootstrap token from the control plane"
+    ),
     cluster_name: str = typer.Option(..., "--cluster-name", help="EKS cluster name"),
     region: str = typer.Option(..., "--region", help="AWS region"),
     control_plane_url: str = typer.Option(
@@ -71,7 +73,9 @@ def bootstrap(
     dns_webhook_tag: str = typer.Option(
         DNS_WEBHOOK_VERSION, "--dns-webhook-tag", help="Image tag for the dns-webhook sidecar"
     ),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Print actions without executing anything"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Print actions without executing anything"
+    ),
     auto_approve: bool = typer.Option(
         False, "--auto-approve", help="Skip the interactive 'yes' confirmation prompt"
     ),
@@ -100,7 +104,9 @@ def bootstrap(
 
 @app.command("upgrade")
 def upgrade(
-    token: str = typer.Option(..., "--token", help="One-time bootstrap token from the control plane"),
+    token: str = typer.Option(
+        ..., "--token", help="One-time bootstrap token from the control plane"
+    ),
     cluster_name: str = typer.Option(..., "--cluster-name", help="EKS cluster name"),
     region: str = typer.Option(..., "--region", help="AWS region"),
     control_plane_url: str = typer.Option(
@@ -115,9 +121,13 @@ def upgrade(
     dns_webhook_tag: str = typer.Option(
         DNS_WEBHOOK_VERSION, "--dns-webhook-tag", help="Image tag for the dns-webhook sidecar"
     ),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Print actions without executing anything"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Print actions without executing anything"
+    ),
     auto_approve: bool = typer.Option(
-        True, "--auto-approve/--no-auto-approve", help="Skip the interactive 'yes' confirmation prompt"
+        True,
+        "--auto-approve/--no-auto-approve",
+        help="Skip the interactive 'yes' confirmation prompt",
     ),
     skip_tls_verify: bool = typer.Option(
         False, "--skip-tls-verify", help="Disable TLS verification against the control plane"
