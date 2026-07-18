@@ -7,6 +7,7 @@ from rich.console import Console
 from .addons import (
     HelmAddon,
     KUBEBLOCKS_CRDS_URL,
+    KUBEBLOCKS_NAMESPACE,
     SNAPSHOT_CRD_URLS,
     helm_repos_for,
     make_external_dns,
@@ -153,6 +154,44 @@ def _ensure_s3_bucket(bucket: str, region: str, dry_run: bool) -> None:
     console.print(f"\\[s3] bucket {bucket} created")
 
 
+def _rollout_restart(deployment: str, namespace: str, dry_run: bool) -> None:
+    if dry_run:
+        console.print(
+            f"[yellow]\\[kubectl] dry-run: rollout restart deployment/{deployment} "
+            f"-n {namespace}[/yellow]"
+        )
+        return
+    restart = subprocess.run(
+        ["kubectl", "rollout", "restart", f"deployment/{deployment}", "-n", namespace],
+        capture_output=True,
+        text=True,
+    )
+    if restart.returncode != 0:
+        raise RuntimeError(
+            f"[kubectl] rollout restart deployment/{deployment} -n {namespace} failed:\n"
+            f"{restart.stderr.strip()}"
+        )
+    status = subprocess.run(
+        [
+            "kubectl",
+            "rollout",
+            "status",
+            f"deployment/{deployment}",
+            "-n",
+            namespace,
+            "--timeout=5m",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if status.returncode != 0:
+        raise RuntimeError(
+            f"[kubectl] rollout status deployment/{deployment} -n {namespace} failed:\n"
+            f"{status.stderr.strip()}"
+        )
+    console.print(f"\\[kubectl] deployment/{deployment} restarted and healthy")
+
+
 def _install_addons(addons: list[HelmAddon], dry_run: bool) -> None:
     ensure_helm_repos(helm_repos_for(addons), dry_run=dry_run)
     for addon in addons:
@@ -247,6 +286,8 @@ def run(
     _install_addons(
         [make_kubeblocks(kubeblocks_backup_bucket, kubeblocks_backup_region)], dry_run=dry_run
     )
+    for deployment in ("kubeblocks", "kubeblocks-dataprotection"):
+        _rollout_restart(deployment, namespace=KUBEBLOCKS_NAMESPACE, dry_run=dry_run)
 
     _ecr_login(region=region, dry_run=dry_run)
 
