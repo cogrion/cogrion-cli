@@ -25,6 +25,10 @@ def _run_bootstrap(
     agent_version: str,
     traefik_subnets: str,
     dns_webhook_tag: str,
+    kubeblocks_backup_bucket: str | None,
+    kubeblocks_backup_region: str | None,
+    tofu_backend_bucket: str,
+    tofu_backend_region: str | None,
     dry_run: bool,
     auto_approve: bool,
     skip_tls_verify: bool,
@@ -37,6 +41,10 @@ def _run_bootstrap(
         agent_version=agent_version,
         traefik_subnets=traefik_subnets,
         dns_webhook_tag=dns_webhook_tag,
+        kubeblocks_backup_bucket=kubeblocks_backup_bucket or f"{cluster_name}-kb-backup",
+        kubeblocks_backup_region=kubeblocks_backup_region or region,
+        tofu_backend_bucket=tofu_backend_bucket,
+        tofu_backend_region=tofu_backend_region or region,
         dry_run=dry_run,
         auto_approve=auto_approve,
         skip_tls_verify=skip_tls_verify,
@@ -84,6 +92,26 @@ def bootstrap(
     dns_webhook_tag: str = typer.Option(
         DNS_WEBHOOK_VERSION, "--dns-webhook-tag", help="Image tag for the dns-webhook sidecar"
     ),
+    kubeblocks_backup_bucket: str = typer.Option(
+        None,
+        "--kubeblocks-backup-bucket",
+        help="S3 bucket for KubeBlocks dataprotection backups "
+        "(default: <cluster-name>-kb-backup)",
+    ),
+    kubeblocks_backup_region: str = typer.Option(
+        None,
+        "--kubeblocks-backup-region",
+        help="Region for the KubeBlocks backup bucket (default: --region)",
+    ),
+    tofu_backend_bucket: str = typer.Option(
+        ...,
+        "--tofu-backend-bucket",
+        help="S3 bucket used for OpenTofu remote state — passed to cplane-agent "
+        "so it can run tofu itself for stack management",
+    ),
+    tofu_backend_region: str = typer.Option(
+        None, "--tofu-backend-region", help="Region for the Tofu backend bucket (default: --region)"
+    ),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Print actions without executing anything"
     ),
@@ -95,7 +123,7 @@ def bootstrap(
     ),
 ) -> None:
     """Bootstrap a tenant EKS cluster: registers with the control plane, then installs
-    traefik, external-dns, and the cplane-agent.
+    traefik, external-dns, KubeBlocks, and the cplane-agent.
 
     Assumes the cluster, node group, IRSA roles (bootstrap/cluster-agent/kubeblocks),
     namespaces, and storage classes already exist — provisioned by
@@ -111,6 +139,10 @@ def bootstrap(
         agent_version=agent_version,
         traefik_subnets=traefik_subnets,
         dns_webhook_tag=dns_webhook_tag,
+        kubeblocks_backup_bucket=kubeblocks_backup_bucket,
+        kubeblocks_backup_region=kubeblocks_backup_region,
+        tofu_backend_bucket=tofu_backend_bucket,
+        tofu_backend_region=tofu_backend_region,
         dry_run=dry_run,
         auto_approve=auto_approve,
         skip_tls_verify=skip_tls_verify,
@@ -139,6 +171,26 @@ def upgrade(
     dns_webhook_tag: str = typer.Option(
         DNS_WEBHOOK_VERSION, "--dns-webhook-tag", help="Image tag for the dns-webhook sidecar"
     ),
+    kubeblocks_backup_bucket: str = typer.Option(
+        None,
+        "--kubeblocks-backup-bucket",
+        help="S3 bucket for KubeBlocks dataprotection backups "
+        "(default: <cluster-name>-kb-backup)",
+    ),
+    kubeblocks_backup_region: str = typer.Option(
+        None,
+        "--kubeblocks-backup-region",
+        help="Region for the KubeBlocks backup bucket (default: --region)",
+    ),
+    tofu_backend_bucket: str = typer.Option(
+        ...,
+        "--tofu-backend-bucket",
+        help="S3 bucket used for OpenTofu remote state — passed to cplane-agent "
+        "so it can run tofu itself for stack management",
+    ),
+    tofu_backend_region: str = typer.Option(
+        None, "--tofu-backend-region", help="Region for the Tofu backend bucket (default: --region)"
+    ),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Print actions without executing anything"
     ),
@@ -165,6 +217,10 @@ def upgrade(
         agent_version=agent_version,
         traefik_subnets=traefik_subnets,
         dns_webhook_tag=dns_webhook_tag,
+        kubeblocks_backup_bucket=kubeblocks_backup_bucket,
+        kubeblocks_backup_region=kubeblocks_backup_region,
+        tofu_backend_bucket=tofu_backend_bucket,
+        tofu_backend_region=tofu_backend_region,
         dry_run=dry_run,
         auto_approve=auto_approve,
         skip_tls_verify=skip_tls_verify,

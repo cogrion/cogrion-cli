@@ -116,3 +116,58 @@ def make_external_dns(control_plane_url: str, webhook_tag: str = DNS_WEBHOOK_VER
 
 def helm_repos_for(addons: list[HelmAddon]) -> dict[str, str]:
     return {a.repo_name: a.repo_url for a in addons if a.repo_name and a.repo_url}
+
+
+KUBEBLOCKS_VERSION = "v1.0.2"
+KUBEBLOCKS_NAMESPACE = "kb-system"
+KUBEBLOCKS_CRDS_URL = (
+    f"https://github.com/apecloud/kubeblocks/releases/download/{KUBEBLOCKS_VERSION}/"
+    "kubeblocks_crds.yaml"
+)
+
+SNAPSHOT_CONTROLLER_VERSION = "v8.2.0"
+_SNAPSHOT_CRD_BASE = (
+    f"https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/"
+    f"{SNAPSHOT_CONTROLLER_VERSION}/client/config/crd"
+)
+SNAPSHOT_CRD_URLS = [
+    f"{_SNAPSHOT_CRD_BASE}/snapshot.storage.k8s.io_volumesnapshotclasses.yaml",
+    f"{_SNAPSHOT_CRD_BASE}/snapshot.storage.k8s.io_volumesnapshots.yaml",
+    f"{_SNAPSHOT_CRD_BASE}/snapshot.storage.k8s.io_volumesnapshotcontents.yaml",
+]
+
+# serviceAccount.create is false — terraform-cogrion-aws-eks-managed-node-group's
+# kubeblocks-irsa.tf already provisions kb-system and the kubeblocks/
+# kubeblocks-dataprotection-* ServiceAccounts with IRSA annotations.
+_KUBEBLOCKS_VALUES_TEMPLATE = """\
+nodeSelector:
+  nodegroup: system
+dataprotection:
+  enabled: true
+serviceAccount:
+  create: false
+backupRepo:
+  create: false
+  default: true
+  accessMethod: Tool
+  storageProvider: "s3"
+  pvReclaimPolicy: "Retain"
+  volumeCapacity: ""
+  config:
+    bucket: {bucket}
+    endpoint: ""
+    region: {region}
+"""
+
+
+def make_kubeblocks(backup_bucket: str, backup_region: str) -> HelmAddon:
+    return HelmAddon(
+        release_name="kubeblocks",
+        namespace=KUBEBLOCKS_NAMESPACE,
+        chart="kubeblocks/kubeblocks",
+        version=KUBEBLOCKS_VERSION,
+        repo_name="kubeblocks",
+        repo_url="https://apecloud.github.io/helm-charts",
+        values_yaml=_KUBEBLOCKS_VALUES_TEMPLATE.format(bucket=backup_bucket, region=backup_region),
+        detect=("deployment", "kubeblocks"),
+    )

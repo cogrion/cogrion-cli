@@ -4,7 +4,15 @@ import sys
 
 from rich.console import Console
 
-from .addons import HelmAddon, helm_repos_for, make_external_dns, make_traefik
+from .addons import (
+    HelmAddon,
+    KUBEBLOCKS_CRDS_URL,
+    SNAPSHOT_CRD_URLS,
+    helm_repos_for,
+    make_external_dns,
+    make_kubeblocks,
+    make_traefik,
+)
 from .constants import (
     CPLANE_AGENT_CHART,
     COGRION_SYSTEM_NAMESPACE,
@@ -101,6 +109,50 @@ def _ecr_login(region: str, dry_run: bool) -> None:
     console.print("\\[ecr] login successful")
 
 
+def _apply_manifest_url(url: str, dry_run: bool, server_side: bool = False) -> None:
+    if dry_run:
+        console.print(f"[yellow]\\[kubectl] dry-run: apply {url}[/yellow]")
+        return
+    cmd = ["kubectl", "apply"]
+    if server_side:
+        cmd += ["--server-side", "--force-conflicts"]
+    cmd += ["-f", url]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"[kubectl] apply {url} failed:\n{result.stderr.strip()}")
+    console.print(f"\\[kubectl] applied {url}")
+
+
+def _ensure_s3_bucket(bucket: str, region: str, dry_run: bool) -> None:
+    if dry_run:
+        console.print(f"[yellow]\\[s3] dry-run: ensure bucket {bucket} ({region})[/yellow]")
+        return
+    head = subprocess.run(
+        ["aws", "s3api", "head-bucket", "--bucket", bucket], capture_output=True, text=True
+    )
+    if head.returncode == 0:
+        console.print(f"\\[s3] bucket {bucket} already exists — skipping")
+        return
+    result = subprocess.run(
+        [
+            "aws",
+            "s3api",
+            "create-bucket",
+            "--bucket",
+            bucket,
+            "--region",
+            region,
+            "--create-bucket-configuration",
+            f"LocationConstraint={region}",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"[s3] failed to create bucket {bucket}:\n{result.stderr.strip()}")
+    console.print(f"\\[s3] bucket {bucket} created")
+
+
 def _install_addons(addons: list[HelmAddon], dry_run: bool) -> None:
     ensure_helm_repos(helm_repos_for(addons), dry_run=dry_run)
     for addon in addons:
@@ -131,6 +183,10 @@ def run(
     agent_version: str,
     traefik_subnets: str,
     dns_webhook_tag: str,
+    kubeblocks_backup_bucket: str,
+    kubeblocks_backup_region: str,
+    tofu_backend_bucket: str,
+    tofu_backend_region: str,
     dry_run: bool,
     auto_approve: bool,
     skip_tls_verify: bool,
@@ -142,7 +198,10 @@ def run(
     console.print(f"  Cluster              : {cluster_name}  ({region})")
     console.print(f"  Control plane        : {control_plane_url}")
     console.print(f"  Namespace (must exist): {COGRION_SYSTEM_NAMESPACE}")
-    console.print("  Addons to install    : traefik, external-dns (+ dns-webhook)")
+    console.print("  Addons to install    : traefik, external-dns (+ dns-webhook), kubeblocks")
+    console.print(
+        f"  KubeBlocks backups   : s3://{kubeblocks_backup_bucket} ({kubeblocks_backup_region})"
+    )
     console.print(f"  cplane-agent chart   : {agent_version}")
     console.print("=" * 60)
     console.print()
@@ -181,6 +240,14 @@ def run(
     ]
     _install_addons(addons, dry_run=dry_run)
 
+    _ensure_s3_bucket(kubeblocks_backup_bucket, kubeblocks_backup_region, dry_run=dry_run)
+    for url in SNAPSHOT_CRD_URLS:
+        _apply_manifest_url(url, dry_run=dry_run)
+    _apply_manifest_url(KUBEBLOCKS_CRDS_URL, dry_run=dry_run, server_side=True)
+    _install_addons(
+        [make_kubeblocks(kubeblocks_backup_bucket, kubeblocks_backup_region)], dry_run=dry_run
+    )
+
     _ecr_login(region=region, dry_run=dry_run)
 
     helm_apply(
@@ -192,6 +259,9 @@ def run(
             "existingSecret": "cluster-agent-credentials",
             "serviceAccount.create": "false",
             "serviceAccount.name": "cplane-agent",
+            "tofu.backendBucket": tofu_backend_bucket,
+            "tofu.backendRegion": tofu_backend_region,
+            "aws.region": region,
         },
         dry_run=dry_run,
     )
