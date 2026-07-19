@@ -129,29 +129,24 @@ def _ensure_s3_bucket(bucket: str, region: str, dry_run: bool) -> None:
         console.print(f"[yellow]\\[s3] dry-run: ensure bucket {bucket} ({region})[/yellow]")
         return
     head = subprocess.run(
-        ["aws", "s3api", "head-bucket", "--bucket", bucket], capture_output=True, text=True
-    )
-    if head.returncode == 0:
-        console.print(f"\\[s3] bucket {bucket} already exists — skipping")
-        return
-    result = subprocess.run(
-        [
-            "aws",
-            "s3api",
-            "create-bucket",
-            "--bucket",
-            bucket,
-            "--region",
-            region,
-            "--create-bucket-configuration",
-            f"LocationConstraint={region}",
-        ],
+        ["aws", "s3api", "head-bucket", "--bucket", bucket, "--region", region],
         capture_output=True,
         text=True,
     )
-    if result.returncode != 0:
-        raise RuntimeError(f"[s3] failed to create bucket {bucket}:\n{result.stderr.strip()}")
-    console.print(f"\\[s3] bucket {bucket} created")
+    if head.returncode == 0:
+        console.print(f"\\[s3] bucket {bucket} already exists — adopting")
+        return
+    create_args = ["aws", "s3api", "create-bucket", "--bucket", bucket, "--region", region]
+    if region != "us-east-1":
+        create_args += ["--create-bucket-configuration", f"LocationConstraint={region}"]
+    result = subprocess.run(create_args, capture_output=True, text=True)
+    if result.returncode == 0:
+        console.print(f"\\[s3] bucket {bucket} created")
+        return
+    if "BucketAlreadyOwnedByYou" in result.stderr:
+        console.print(f"\\[s3] bucket {bucket} already exists — adopting")
+        return
+    raise RuntimeError(f"[s3] failed to create bucket {bucket}:\n{result.stderr.strip()}")
 
 
 def _rollout_restart(deployment: str, namespace: str, dry_run: bool) -> None:
