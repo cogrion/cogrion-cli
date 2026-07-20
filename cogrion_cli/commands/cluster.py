@@ -32,6 +32,8 @@ def _run_bootstrap(
     dry_run: bool,
     auto_approve: bool,
     skip_tls_verify: bool,
+    force_register: bool = False,
+    force_upgrade: bool = False,
 ) -> None:
     runner.run(
         token=token,
@@ -48,6 +50,8 @@ def _run_bootstrap(
         dry_run=dry_run,
         auto_approve=auto_approve,
         skip_tls_verify=skip_tls_verify,
+        force_register=force_register,
+        force_upgrade=force_upgrade,
     )
 
 
@@ -202,11 +206,29 @@ def upgrade(
     skip_tls_verify: bool = typer.Option(
         False, "--skip-tls-verify", help="Disable TLS verification against the control plane"
     ),
+    force_register: bool = typer.Option(
+        False,
+        "--force-register",
+        help="Re-register with the control plane using --token even if this cluster is "
+        "already registered, overwriting the existing cluster-agent-credentials secret. "
+        "Use this to rotate mTLS credentials with a fresh one-time token.",
+    ),
+    force_upgrade: bool = typer.Option(
+        False,
+        "--force-upgrade",
+        help="Run the kubeblocks CRD re-apply, helm upgrade, and rollout restart even if "
+        "it's already installed at the target version. Use this to force a reconcile "
+        "or restart when nothing actually changed but you want one anyway.",
+    ),
 ) -> None:
     """Re-apply bootstrap on an already-bootstrapped cluster to fix drift or pick up new versions.
 
     Runs the exact same idempotent steps as `bootstrap` — safe to re-run.
     Confirmation is skipped by default since this targets an existing cluster.
+    Registration itself is skipped by default too (the cluster is already
+    registered) unless --force-register is passed. Likewise, the kubeblocks
+    CRD re-apply/upgrade/restart is skipped when already at the target
+    version unless --force-upgrade is passed.
     """
     _validate_provider(provider)
     _run_bootstrap(
@@ -224,4 +246,6 @@ def upgrade(
         dry_run=dry_run,
         auto_approve=auto_approve,
         skip_tls_verify=skip_tls_verify,
+        force_register=force_register,
+        force_upgrade=force_upgrade,
     )

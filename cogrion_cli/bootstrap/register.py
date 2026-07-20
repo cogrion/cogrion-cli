@@ -103,17 +103,23 @@ def register_agent(
     skip_tls_verify: bool = False,
     cluster_name: Optional[str] = None,
     region: Optional[str] = None,
+    force_register: bool = False,
 ) -> RegistrationResult:
     secret_name = "cluster-agent-credentials"
 
-    # Idempotency — skip if secret already exists
+    # Idempotency — skip if secret already exists, unless a re-registration
+    # (e.g. to rotate mTLS creds with a fresh one-time token) was requested.
     check = subprocess.run(
         ["kubectl", "get", "secret", secret_name, "-n", namespace],
         capture_output=True,
     )
-    if check.returncode == 0:
+    if check.returncode == 0 and not force_register:
         print(f"[register] {secret_name} already exists — skipping registration")
         return _read_existing_secret(secret_name, namespace)
+    if check.returncode == 0 and force_register:
+        print(
+            f"[register] --force-register set — re-registering, {secret_name} will be overwritten"
+        )
 
     print(f"[register] registering with {control_plane_url}")
 

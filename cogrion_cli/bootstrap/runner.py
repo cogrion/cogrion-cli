@@ -19,7 +19,7 @@ from .constants import (
     COGRION_SYSTEM_NAMESPACE,
     ECR_PUBLIC_REGISTRY,
 )
-from .helm import ensure_helm_repos, helm_apply, is_externally_managed
+from .helm import ensure_helm_repos, helm_apply, is_externally_managed, needs_upgrade
 from .register import register_agent
 
 console = Console()
@@ -110,6 +110,25 @@ def _ecr_login(region: str, dry_run: bool) -> None:
     console.print("\\[ecr] login successful")
 
 
+def _should_upgrade(addon: HelmAddon, dry_run: bool, force_upgrade: bool) -> bool:
+    """Single, addon-agnostic decision point for whether to (re)install an
+    addon — every caller that wants this gated (or bypassed) should go
+    through here rather than re-deriving the condition inline. dry_run
+    can't know the real cluster state, so it always says yes ("would
+    upgrade"); force_upgrade is explicit operator intent to bypass the
+    version check entirely (e.g. to force a reconcile/restart even though
+    nothing changed); otherwise defer to needs_upgrade's real Helm-state
+    comparison.
+
+    Note this only compares chart identity/version, not `set_args`/
+    `values_yaml` content — if an addon's values changed but its chart
+    version didn't, re-running without --force-upgrade won't pick that up.
+    That's the explicit trade-off: cheap, predictable no-op re-runs by
+    default, with --force-upgrade as the escape hatch when values need to
+    be reapplied despite an unchanged version."""
+    return dry_run or force_upgrade or needs_upgrade(addon)
+
+
 def _apply_manifest_url(url: str, dry_run: bool, server_side: bool = False) -> None:
     if dry_run:
         console.print(f"[yellow]\\[kubectl] dry-run: apply {url}[/yellow]")
@@ -187,7 +206,7 @@ def _rollout_restart(deployment: str, namespace: str, dry_run: bool) -> None:
     console.print(f"\\[kubectl] deployment/{deployment} restarted and healthy")
 
 
-def _install_addons(addons: list[HelmAddon], dry_run: bool) -> None:
+def _install_addons(addons: list[HelmAddon], dry_run: bool, force_upgrade: bool = False) -> None:
     ensure_helm_repos(helm_repos_for(addons), dry_run=dry_run)
     for addon in addons:
         if addon.detect and not dry_run:
@@ -198,6 +217,11 @@ def _install_addons(addons: list[HelmAddon], dry_run: bool) -> None:
                     "outside Helm — skipping[/yellow]"
                 )
                 continue
+        if not _should_upgrade(addon, dry_run=dry_run, force_upgrade=force_upgrade):
+            console.print(
+                f"\\[helm] {addon.release_name} already at version {addon.version} — skipping"
+            )
+            continue
         helm_apply(
             release=addon.release_name,
             namespace=addon.namespace,
@@ -224,6 +248,8 @@ def run(
     dry_run: bool,
     auto_approve: bool,
     skip_tls_verify: bool,
+    force_register: bool = False,
+    force_upgrade: bool = False,
 ) -> None:
     console.print()
     console.print("=" * 60)
@@ -259,6 +285,7 @@ def run(
         skip_tls_verify=skip_tls_verify,
         cluster_name=cluster_name,
         region=region,
+        force_register=force_register,
     )
 
     _copy_secret_to_namespace(
@@ -272,22 +299,27 @@ def run(
         make_traefik(traefik_subnets),
         make_external_dns(control_plane_url, webhook_tag=dns_webhook_tag),
     ]
-    _install_addons(addons, dry_run=dry_run)
+    _install_addons(addons, dry_run=dry_run, force_upgrade=force_upgrade)
 
     _ensure_s3_bucket(kubeblocks_backup_bucket, kubeblocks_backup_region, dry_run=dry_run)
-    for url in SNAPSHOT_CRD_URLS:
-        _apply_manifest_url(url, dry_run=dry_run)
-    _apply_manifest_url(KUBEBLOCKS_CRDS_URL, dry_run=dry_run, server_side=True)
-    _install_addons(
-        [make_kubeblocks(kubeblocks_backup_bucket, kubeblocks_backup_region)], dry_run=dry_run
-    )
-    for deployment in ("kubeblocks", "kubeblocks-dataprotection"):
-        _rollout_restart(deployment, namespace=KUBEBLOCKS_NAMESPACE, dry_run=dry_run)
+    kubeblocks_addon = make_kubeblocks(kubeblocks_backup_bucket, kubeblocks_backup_region)
+    if _should_upgrade(kubeblocks_addon, dry_run=dry_run, force_upgrade=force_upgrade):
+        for url in SNAPSHOT_CRD_URLS:
+            _apply_manifest_url(url, dry_run=dry_run)
+        _apply_manifest_url(KUBEBLOCKS_CRDS_URL, dry_run=dry_run, server_side=True)
+        _install_addons([kubeblocks_addon], dry_run=dry_run, force_upgrade=force_upgrade)
+        for deployment in ("kubeblocks", "kubeblocks-dataprotection"):
+            _rollout_restart(deployment, namespace=KUBEBLOCKS_NAMESPACE, dry_run=dry_run)
+    else:
+        console.print(
+            f"\\[kubeblocks] already at version {kubeblocks_addon.version} — "
+            "skipping CRD re-apply, helm upgrade, and rollout restart"
+        )
 
     _ecr_login(region=region, dry_run=dry_run)
 
-    helm_apply(
-        release="cplane-agent",
+    cplane_agent_addon = HelmAddon(
+        release_name="cplane-agent",
         namespace=COGRION_SYSTEM_NAMESPACE,
         chart=CPLANE_AGENT_CHART,
         version=agent_version,
@@ -299,7 +331,7 @@ def run(
             "tofu.backendRegion": tofu_backend_region,
             "aws.region": region,
         },
-        dry_run=dry_run,
     )
+    _install_addons([cplane_agent_addon], dry_run=dry_run, force_upgrade=force_upgrade)
 
     console.print("[green]\\[bootstrap] complete[/green]")

@@ -1,4 +1,4 @@
-.PHONY: help version test install lint bump-patch bump-minor bump-major
+.PHONY: help version test install lint precommit bump-patch bump-minor bump-major
 
 VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.1")
 
@@ -24,6 +24,8 @@ test: ## Run tests
 
 lint: ## Format code with black
 	uv run black cogrion_cli tests
+
+precommit: lint test ## Run lint then tests — use before committing
 
 define update-version
 	sed -i 's/^version = ".*"/version = "$(NEW_VER)"/' pyproject.toml
