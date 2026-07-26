@@ -80,7 +80,6 @@ def _run_kwargs(**overrides):
         region="ap-southeast-1",
         control_plane_url="https://cplane.example.com",
         agent_version="0.1.0",
-        traefik_subnets="subnet-a,subnet-b",
         dns_webhook_tag="0.1.0",
         dry_run=False,
         auto_approve=True,

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Remove traefik from `cluster bootstrap`/`upgrade`: it's now installed by `terraform-cogrion-aws-eks-managed-node-group` (a `helm_release`) instead of cogrion-cli, so `terraform destroy` can tear down its Service/ELB along with the rest of the cluster instead of orphaning it. Drops `--traefik-subnets` and the `make_traefik` addon entirely.
 - Bump default `cplane-agent` chart version to `0.1.13-0.1.33`.
 - Add `make precommit` (runs `make lint` then `make test`).
 - Add `--force-register` to `cluster upgrade`: re-registers with the control plane using a fresh one-time `--token` even if `cluster-agent-credentials` already exists. Previously `register_agent` silently skipped registration whenever that secret existed, ignoring `--token` entirely — the only way to rotate mTLS credentials was to manually delete the secret first.

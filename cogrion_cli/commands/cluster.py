@@ -23,7 +23,6 @@ def _run_bootstrap(
     region: str,
     control_plane_url: str,
     agent_version: str,
-    traefik_subnets: str,
     dns_webhook_tag: str,
     kubeblocks_backup_bucket: str | None,
     kubeblocks_backup_region: str | None,
@@ -41,7 +40,6 @@ def _run_bootstrap(
         region=region,
         control_plane_url=control_plane_url,
         agent_version=agent_version,
-        traefik_subnets=traefik_subnets,
         dns_webhook_tag=dns_webhook_tag,
         kubeblocks_backup_bucket=kubeblocks_backup_bucket or f"{cluster_name}-kb-backup",
         kubeblocks_backup_region=kubeblocks_backup_region or region,
@@ -85,14 +83,6 @@ def bootstrap(
     agent_version: str = typer.Option(
         CPLANE_AGENT_DEFAULT_VERSION, "--agent-version", help="cplane-agent Helm chart version"
     ),
-    traefik_subnets: str = typer.Option(
-        ...,
-        "--traefik-subnets",
-        help="Comma-separated public subnet IDs for the Traefik NLB "
-        "(get them with: aws ec2 describe-subnets "
-        "--filters Name=tag:kubernetes.io/role/elb,Values=1 "
-        "--query 'Subnets[].SubnetId' --output text)",
-    ),
     dns_webhook_tag: str = typer.Option(
         DNS_WEBHOOK_VERSION, "--dns-webhook-tag", help="Image tag for the dns-webhook sidecar"
     ),
@@ -127,12 +117,12 @@ def bootstrap(
     ),
 ) -> None:
     """Bootstrap a tenant EKS cluster: registers with the control plane, then installs
-    traefik, external-dns, KubeBlocks, and the cplane-agent.
+    external-dns, KubeBlocks, and the cplane-agent.
 
     Assumes the cluster, node group, IRSA roles (bootstrap/cluster-agent/kubeblocks),
     namespaces, and storage classes already exist — provisioned by
-    terraform-cogrion-aws-eks-managed-node-group. This command only handles the
-    delivery layer on top of that.
+    terraform-cogrion-aws-eks-managed-node-group (including traefik). This command only
+    handles the delivery layer on top of that.
     """
     _validate_provider(provider)
     _run_bootstrap(
@@ -141,7 +131,6 @@ def bootstrap(
         region=region,
         control_plane_url=control_plane_url,
         agent_version=agent_version,
-        traefik_subnets=traefik_subnets,
         dns_webhook_tag=dns_webhook_tag,
         kubeblocks_backup_bucket=kubeblocks_backup_bucket,
         kubeblocks_backup_region=kubeblocks_backup_region,
@@ -168,9 +157,6 @@ def upgrade(
     ),
     agent_version: str = typer.Option(
         CPLANE_AGENT_DEFAULT_VERSION, "--agent-version", help="cplane-agent Helm chart version"
-    ),
-    traefik_subnets: str = typer.Option(
-        ..., "--traefik-subnets", help="Comma-separated public subnet IDs for the Traefik NLB"
     ),
     dns_webhook_tag: str = typer.Option(
         DNS_WEBHOOK_VERSION, "--dns-webhook-tag", help="Image tag for the dns-webhook sidecar"
@@ -237,7 +223,6 @@ def upgrade(
         region=region,
         control_plane_url=control_plane_url,
         agent_version=agent_version,
-        traefik_subnets=traefik_subnets,
         dns_webhook_tag=dns_webhook_tag,
         kubeblocks_backup_bucket=kubeblocks_backup_bucket,
         kubeblocks_backup_region=kubeblocks_backup_region,

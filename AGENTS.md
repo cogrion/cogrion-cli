@@ -19,7 +19,7 @@ cogrion_cli/
     runner.py       # orchestrates the full bootstrap/upgrade flow
     register.py     # POST /agent/register → writes cluster-agent-credentials secret
     helm.py         # helm_apply() with stuck-release handling — the only place that shells out to helm
-    addons.py       # traefik + external-dns(+dns-webhook) + kubeblocks HelmAddon definitions
+    addons.py       # external-dns(+dns-webhook) + kubeblocks HelmAddon definitions
 ```
 
 No AWS SDK (boto3) anywhere in this package — `bootstrap/` makes zero AWS API calls. IRSA roles, namespaces, service accounts, and storage classes are entirely `terraform-cogrion-aws-eks-managed-node-group`'s job; this package only does registration + Helm installs on top of what Terraform already provisioned. It's invoked two ways: a human running `cogrion cluster bootstrap` directly, or that same Terraform module's `tenant_bootstrap`-gated Job running it in-cluster via the `bootstrap-sa` IRSA identity — same command either way, just a different trigger.

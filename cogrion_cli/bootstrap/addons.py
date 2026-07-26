@@ -14,37 +14,6 @@ class HelmAddon:
     detect: tuple[str, str] | None = None
 
 
-TRAEFIK_VERSION = "41.0.2"
-TRAEFIK_NAMESPACE = "traefik"
-
-
-# public_subnets: comma-separated subnet IDs tagged kubernetes.io/role/elb=1.
-# AWS ELB/NLB subnet discovery requires either (a) the subnets carry the
-# kubernetes.io/cluster/<name>=shared tag, or (b) they are explicitly listed
-# via this annotation. We use the annotation because the tag key depends on the
-# cluster name, which callers of this function may not carry.
-def make_traefik(public_subnets: str) -> HelmAddon:
-    return HelmAddon(
-        release_name="traefik",
-        namespace=TRAEFIK_NAMESPACE,
-        chart="traefik/traefik",
-        version=TRAEFIK_VERSION,
-        repo_name="traefik",
-        repo_url="https://traefik.github.io/charts",
-        set_args={
-            "service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-subnets": public_subnets,
-            # Every workspace Ingress gets a valid wildcard cert (see
-            # platform-stacks kcl/providers/domain), but nothing forced HTTPS —
-            # port 80 served apps in plaintext, which browsers correctly flag
-            # as Not Secure even though the cert itself is fine.
-            "ports.web.http.redirections.entryPoint.to": "websecure",
-            "ports.web.http.redirections.entryPoint.scheme": "https",
-            "ports.web.http.redirections.entryPoint.permanent": "true",
-        },
-        detect=("deployment", "traefik"),
-    )
-
-
 DNS_WEBHOOK_IMAGE = "public.ecr.aws/quantdata/cogrion/dns-webhook"
 DNS_WEBHOOK_VERSION = "0.1.6"
 

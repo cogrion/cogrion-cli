@@ -25,8 +25,6 @@ def test_cluster_bootstrap_requires_tofu_backend_bucket():
             "qd-platform-test",
             "--region",
             "ap-southeast-1",
-            "--traefik-subnets",
-            "subnet-a,subnet-b",
             "--dry-run",
             "--auto-approve",
         ],

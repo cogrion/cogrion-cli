@@ -12,7 +12,6 @@ from .addons import (
     helm_repos_for,
     make_external_dns,
     make_kubeblocks,
-    make_traefik,
 )
 from .constants import (
     CPLANE_AGENT_CHART,
@@ -239,7 +238,6 @@ def run(
     region: str,
     control_plane_url: str,
     agent_version: str,
-    traefik_subnets: str,
     dns_webhook_tag: str,
     kubeblocks_backup_bucket: str,
     kubeblocks_backup_region: str,
@@ -258,7 +256,7 @@ def run(
     console.print(f"  Cluster              : {cluster_name}  ({region})")
     console.print(f"  Control plane        : {control_plane_url}")
     console.print(f"  Namespace (must exist): {COGRION_SYSTEM_NAMESPACE}")
-    console.print("  Addons to install    : traefik, external-dns (+ dns-webhook), kubeblocks")
+    console.print("  Addons to install    : external-dns (+ dns-webhook), kubeblocks")
     console.print(
         f"  KubeBlocks backups   : s3://{kubeblocks_backup_bucket} ({kubeblocks_backup_region})"
     )
@@ -295,10 +293,7 @@ def run(
         dry_run=dry_run,
     )
 
-    addons = [
-        make_traefik(traefik_subnets),
-        make_external_dns(control_plane_url, webhook_tag=dns_webhook_tag),
-    ]
+    addons = [make_external_dns(control_plane_url, webhook_tag=dns_webhook_tag)]
     _install_addons(addons, dry_run=dry_run, force_upgrade=force_upgrade)
 
     _ensure_s3_bucket(kubeblocks_backup_bucket, kubeblocks_backup_region, dry_run=dry_run)

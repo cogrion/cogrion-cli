@@ -20,18 +20,17 @@ cogrion deploy run --env prod   # STUB
 
 > **STUB** — the three commands above are scaffolding only and do not yet do anything.
 
-`cogrion cluster bootstrap` and `cogrion cluster upgrade` are implemented and handle the delivery layer on top of an already-provisioned cluster: registration with the control plane, traefik, external-dns, KubeBlocks, and the `cplane-agent`. They assume the cluster, node group, IRSA roles, namespaces, and storage classes already exist — provisioned by Terraform, which also runs this exact command in-cluster by default as part of its own bootstrap process:
+`cogrion cluster bootstrap` and `cogrion cluster upgrade` are implemented and handle the delivery layer on top of an already-provisioned cluster: registration with the control plane, external-dns, KubeBlocks, and the `cplane-agent`. They assume the cluster, node group, IRSA roles, namespaces, storage classes, and traefik already exist — provisioned by Terraform, which also runs this exact command in-cluster by default as part of its own bootstrap process:
 
 ```bash
 cogrion cluster bootstrap \
   --token <bootstrap-token> \
   --cluster-name <eks-cluster-name> \
   --region ap-southeast-1 \
-  --traefik-subnets subnet-aaa111,subnet-bbb222 \
   --control-plane-url https://cplane.api.cogrion.com
 
 # re-apply on an already-bootstrapped cluster to fix drift or pick up new versions
-cogrion cluster upgrade --token <bootstrap-token> --cluster-name <eks-cluster-name> --region ap-southeast-1 --traefik-subnets subnet-aaa111,subnet-bbb222
+cogrion cluster upgrade --token <bootstrap-token> --cluster-name <eks-cluster-name> --region ap-southeast-1
 ```
 
 Both accept `--dry-run` to preview every action with no AWS/kubectl/helm calls made.
@@ -40,7 +39,7 @@ Select the target with `--provider` (default `aws`):
 
 | Provider | Status | What `bootstrap`/`upgrade` does |
 |---|---|---|
-| AWS | Supported | Verifies `cogrion-system` namespace exists, registers with the control plane, installs traefik, external-dns + dns-webhook, KubeBlocks (+ snapshot-controller CRDs and its S3 backup bucket), and the `cplane-agent` Helm release |
+| AWS | Supported | Verifies `cogrion-system` namespace exists, registers with the control plane, installs external-dns + dns-webhook, KubeBlocks (+ snapshot-controller CRDs and its S3 backup bucket), and the `cplane-agent` Helm release |
 | AliCloud | Not yet supported | — |
 | GCP | Not yet supported | — |
 | Azure | Not yet supported | — |

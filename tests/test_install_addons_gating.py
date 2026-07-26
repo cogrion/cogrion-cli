@@ -101,7 +101,6 @@ def test_run_gates_cplane_agent_through_install_addons_style_check(monkeypatch):
         region="ap-southeast-1",
         control_plane_url="https://cplane.example.com",
         agent_version="0.1.0",
-        traefik_subnets="subnet-a,subnet-b",
         dns_webhook_tag="0.1.0",
         dry_run=False,
         auto_approve=True,
@@ -113,7 +112,6 @@ def test_run_gates_cplane_agent_through_install_addons_style_check(monkeypatch):
         force_upgrade=False,
     )
 
-    # traefik, external-dns, kubeblocks, and cplane-agent are all "up to
-    # date" per the mocked needs_upgrade — none of them should have called
-    # helm_apply.
+    # external-dns, kubeblocks, and cplane-agent are all "up to date" per
+    # the mocked needs_upgrade — none of them should have called helm_apply.
     assert calls == []
