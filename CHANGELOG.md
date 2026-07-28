@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- README: document the required `--tofu-backend-bucket` flag in the example commands (previously omitted, so copy-pasting the example failed with a missing-required-option error), the `--control-plane-url` region override, `--force-register`/`--force-upgrade`, and that `aws eks describe-cluster` (used for OIDC discovery when run outside a cluster) needs `AWS_PROFILE` set in the shell.
 - Remove traefik from `cluster bootstrap`/`upgrade`: it's now installed by `terraform-cogrion-aws-eks-managed-node-group` (a `helm_release`) instead of cogrion-cli, so `terraform destroy` can tear down its Service/ELB along with the rest of the cluster instead of orphaning it. Drops `--traefik-subnets` and the `make_traefik` addon entirely.
 - Bump default `cplane-agent` chart version to `0.1.13-0.1.33`.
 - Add `make precommit` (runs `make lint` then `make test`).
