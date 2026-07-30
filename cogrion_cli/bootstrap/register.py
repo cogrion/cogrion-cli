@@ -12,13 +12,55 @@ from typing import Optional
 SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 
 
+def _discover_oidc_issuer_aws(cluster_name: str, region: str) -> Optional[str]:
+    cmd = [
+        "aws",
+        "eks",
+        "describe-cluster",
+        "--name",
+        cluster_name,
+        "--region",
+        region,
+        "--query",
+        "cluster.identity.oidc.issuer",
+        "--output",
+        "text",
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+    return result.stdout.strip()
+
+
+def _discover_oidc_issuer_alicloud(cluster_id: str) -> Optional[str]:
+    """cluster_id is the ACK cluster ID (not its display name) — DescribeClusterDetail
+    only accepts the ID, so callers must pass --cluster-name as the ACK cluster ID
+    on this provider."""
+    cmd = ["aliyun", "cs", "DescribeClusterDetail", "--ClusterId", cluster_id]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+    try:
+        detail = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+    issuer = detail.get("rrsa_config", {}).get("issuer", "")
+    if not issuer:
+        return None
+    # rrsa_config.issuer is a comma-separated pair (external OIDC issuer,
+    # in-cluster kubernetes.default.svc issuer) — the first entry is the
+    # one OpenBao/ESO need to trust.
+    return issuer.split(",")[0].strip() or None
+
+
 def _discover_oidc_issuer(
-    cluster_name: Optional[str] = None, region: Optional[str] = None
+    provider: str, cluster_name: Optional[str] = None, region: Optional[str] = None
 ) -> Optional[str]:
     """Return the cluster's OIDC issuer URL.
 
     Primary: decode the `iss` claim from this pod's projected SA token (in-cluster path).
-    Fallback: call `aws eks describe-cluster` when the SA token is absent (local dev path)."""
+    Fallback: query the cloud provider's cluster API when the SA token is absent
+    (local dev / operator-run-from-laptop path)."""
     try:
         with open(SA_TOKEN_PATH) as f:
             token = f.read().strip()
@@ -39,23 +81,12 @@ def _discover_oidc_issuer(
     if not cluster_name or not region:
         return None
 
-    cmd = [
-        "aws",
-        "eks",
-        "describe-cluster",
-        "--name",
-        cluster_name,
-        "--region",
-        region,
-        "--query",
-        "cluster.identity.oidc.issuer",
-        "--output",
-        "text",
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0 or not result.stdout.strip():
-        return None
-    return result.stdout.strip()
+    if provider == "aws":
+        return _discover_oidc_issuer_aws(cluster_name, region)
+    elif provider == "alicloud":
+        return _discover_oidc_issuer_alicloud(cluster_name)
+    else:
+        raise ValueError(f"_discover_oidc_issuer: unsupported provider {provider!r}")
 
 
 @dataclass
@@ -100,6 +131,7 @@ def register_agent(
     token: str,
     namespace: str,
     dry_run: bool,
+    provider: str,
     skip_tls_verify: bool = False,
     cluster_name: Optional[str] = None,
     region: Optional[str] = None,
@@ -127,7 +159,9 @@ def register_agent(
         print(f"[register] dry-run: would POST {control_plane_url}/api/v1/agent/register")
         return RegistrationResult(skipped=True)
 
-    oidc_issuer_url = _discover_oidc_issuer(cluster_name=cluster_name, region=region)
+    oidc_issuer_url = _discover_oidc_issuer(
+        provider=provider, cluster_name=cluster_name, region=region
+    )
     if not oidc_issuer_url:
         raise RuntimeError(
             "Could not discover this cluster's OIDC issuer from the bootstrap "

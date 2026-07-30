@@ -3,12 +3,16 @@ from rich.console import Console
 
 from cogrion_cli.bootstrap import runner
 from cogrion_cli.bootstrap.addons import DNS_WEBHOOK_VERSION
-from cogrion_cli.bootstrap.constants import CPLANE_AGENT_DEFAULT_VERSION, CPLANE_API_URL
+from cogrion_cli.bootstrap.constants import (
+    CPLANE_AGENT_DEFAULT_SERVICE_ACCOUNT_NAME,
+    CPLANE_AGENT_DEFAULT_VERSION,
+    CPLANE_API_URL,
+)
 
 app = typer.Typer(help="Manage your self-hosted cloud clusters")
 console = Console()
 
-_SUPPORTED_PROVIDERS = {"aws"}
+_SUPPORTED_PROVIDERS = {"aws", "alicloud"}
 
 
 def _validate_provider(provider: str) -> None:
@@ -18,11 +22,13 @@ def _validate_provider(provider: str) -> None:
 
 
 def _run_bootstrap(
+    provider: str,
     token: str,
     cluster_name: str,
     region: str,
     control_plane_url: str,
     agent_version: str,
+    agent_service_account_name: str,
     dns_webhook_tag: str,
     kubeblocks_backup_bucket: str | None,
     kubeblocks_backup_region: str | None,
@@ -35,11 +41,13 @@ def _run_bootstrap(
     force_upgrade: bool = False,
 ) -> None:
     runner.run(
+        provider=provider,
         token=token,
         cluster_name=cluster_name,
         region=region,
         control_plane_url=control_plane_url,
         agent_version=agent_version,
+        agent_service_account_name=agent_service_account_name,
         dns_webhook_tag=dns_webhook_tag,
         kubeblocks_backup_bucket=kubeblocks_backup_bucket or f"{cluster_name}-kb-backup",
         kubeblocks_backup_region=kubeblocks_backup_region or region,
@@ -70,18 +78,30 @@ def list_clusters() -> None:
 @app.command("bootstrap")
 def bootstrap(
     provider: str = typer.Option(
-        "aws", "--provider", help="Cloud provider (aws; alicloud/gcp/azure coming soon)"
+        "aws",
+        "--provider",
+        envvar="COGRION_PROVIDER",
+        help="Cloud provider (aws, alicloud; gcp/azure coming soon)",
     ),
     token: str = typer.Option(
         ..., "--token", help="One-time bootstrap token from the control plane"
     ),
-    cluster_name: str = typer.Option(..., "--cluster-name", help="EKS cluster name"),
-    region: str = typer.Option(..., "--region", help="AWS region"),
+    cluster_name: str = typer.Option(
+        ...,
+        "--cluster-name",
+        help="Cluster name (EKS) or cluster ID (ACK, required for alicloud OIDC discovery)",
+    ),
+    region: str = typer.Option(..., "--region", help="Cloud region"),
     control_plane_url: str = typer.Option(
         CPLANE_API_URL, "--control-plane-url", help="Override the control plane API URL"
     ),
     agent_version: str = typer.Option(
         CPLANE_AGENT_DEFAULT_VERSION, "--agent-version", help="cplane-agent Helm chart version"
+    ),
+    agent_service_account_name: str = typer.Option(
+        CPLANE_AGENT_DEFAULT_SERVICE_ACCOUNT_NAME,
+        "--agent-service-account-name",
+        help="Name of the pre-provisioned ServiceAccount (IRSA/RRSA) for cplane-agent",
     ),
     dns_webhook_tag: str = typer.Option(
         DNS_WEBHOOK_VERSION, "--dns-webhook-tag", help="Image tag for the dns-webhook sidecar"
@@ -126,11 +146,13 @@ def bootstrap(
     """
     _validate_provider(provider)
     _run_bootstrap(
+        provider=provider,
         token=token,
         cluster_name=cluster_name,
         region=region,
         control_plane_url=control_plane_url,
         agent_version=agent_version,
+        agent_service_account_name=agent_service_account_name,
         dns_webhook_tag=dns_webhook_tag,
         kubeblocks_backup_bucket=kubeblocks_backup_bucket,
         kubeblocks_backup_region=kubeblocks_backup_region,
@@ -145,18 +167,30 @@ def bootstrap(
 @app.command("upgrade")
 def upgrade(
     provider: str = typer.Option(
-        "aws", "--provider", help="Cloud provider (aws; alicloud/gcp/azure coming soon)"
+        "aws",
+        "--provider",
+        envvar="COGRION_PROVIDER",
+        help="Cloud provider (aws, alicloud; gcp/azure coming soon)",
     ),
     token: str = typer.Option(
         ..., "--token", help="One-time bootstrap token from the control plane"
     ),
-    cluster_name: str = typer.Option(..., "--cluster-name", help="EKS cluster name"),
-    region: str = typer.Option(..., "--region", help="AWS region"),
+    cluster_name: str = typer.Option(
+        ...,
+        "--cluster-name",
+        help="Cluster name (EKS) or cluster ID (ACK, required for alicloud OIDC discovery)",
+    ),
+    region: str = typer.Option(..., "--region", help="Cloud region"),
     control_plane_url: str = typer.Option(
         CPLANE_API_URL, "--control-plane-url", help="Override the control plane API URL"
     ),
     agent_version: str = typer.Option(
         CPLANE_AGENT_DEFAULT_VERSION, "--agent-version", help="cplane-agent Helm chart version"
+    ),
+    agent_service_account_name: str = typer.Option(
+        CPLANE_AGENT_DEFAULT_SERVICE_ACCOUNT_NAME,
+        "--agent-service-account-name",
+        help="Name of the pre-provisioned ServiceAccount (IRSA/RRSA) for cplane-agent",
     ),
     dns_webhook_tag: str = typer.Option(
         DNS_WEBHOOK_VERSION, "--dns-webhook-tag", help="Image tag for the dns-webhook sidecar"
@@ -218,11 +252,13 @@ def upgrade(
     """
     _validate_provider(provider)
     _run_bootstrap(
+        provider=provider,
         token=token,
         cluster_name=cluster_name,
         region=region,
         control_plane_url=control_plane_url,
         agent_version=agent_version,
+        agent_service_account_name=agent_service_account_name,
         dns_webhook_tag=dns_webhook_tag,
         kubeblocks_backup_bucket=kubeblocks_backup_bucket,
         kubeblocks_backup_region=kubeblocks_backup_region,

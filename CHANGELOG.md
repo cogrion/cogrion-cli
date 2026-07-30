@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## Unreleased (2026-07-30)
+
+- Add `--agent-service-account-name` to `cluster bootstrap`/`upgrade` (default `cplane-agent`, matching prior hardcoded behavior): sets `serviceAccount.name` on the `cplane-agent` Helm install, for clusters where the pre-provisioned IRSA/RRSA ServiceAccount uses a non-default name.
+- Add Alicloud (ACK) support to `cluster bootstrap`/`upgrade` via `--provider alicloud` (or `COGRION_PROVIDER` env var): KubeBlocks backups now target an OSS bucket (`storageProvider: oss`, `oss-{region}.aliyuncs.com` endpoint) instead of S3, and the `cplane-agent` install sets `alicloud.regionId` instead of `aws.region`. OIDC issuer discovery (needed for OpenBao/ESO trust) falls back to `aliyun cs DescribeClusterDetail`'s `rrsa_config.issuer` when not running in-cluster — on this provider `--cluster-name` must be the ACK cluster ID, not its display name, since that API only accepts the ID. `provider` is now a required, explicit parameter throughout `bootstrap/` (no silent `aws` default below the CLI layer).
 
 - README: document the required `--tofu-backend-bucket` flag in the example commands (previously omitted, so copy-pasting the example failed with a missing-required-option error), the `--control-plane-url` region override, `--force-register`/`--force-upgrade`, and that `aws eks describe-cluster` (used for OIDC discovery when run outside a cluster) needs `AWS_PROFILE` set in the shell.
 - Remove traefik from `cluster bootstrap`/`upgrade`: it's now installed by `terraform-cogrion-aws-eks-managed-node-group` (a `helm_release`) instead of cogrion-cli, so `terraform destroy` can tear down its Service/ELB along with the rest of the cluster instead of orphaning it. Drops `--traefik-subnets` and the `make_traefik` addon entirely.

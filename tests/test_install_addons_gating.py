@@ -96,6 +96,7 @@ def test_run_gates_cplane_agent_through_install_addons_style_check(monkeypatch):
     monkeypatch.setattr(runner, "helm_apply", lambda **k: calls.append(k))
 
     runner.run(
+        provider="aws",
         token="tok",
         cluster_name="qd-platform-test",
         region="ap-southeast-1",

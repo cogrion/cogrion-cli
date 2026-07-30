@@ -41,6 +41,7 @@ def test_register_agent_skips_when_secret_exists_and_not_forced(monkeypatch):
 
     result = register.register_agent(
         control_plane_url="https://cplane.example.com",
+        provider="aws",
         token="tok",
         namespace="cogrion-system",
         dry_run=False,
@@ -63,6 +64,7 @@ def test_register_agent_reregisters_when_secret_exists_and_forced(monkeypatch, c
 
     result = register.register_agent(
         control_plane_url="https://cplane.example.com",
+        provider="aws",
         token="fresh-tok",
         namespace="cogrion-system",
         dry_run=True,
@@ -86,6 +88,7 @@ def test_register_agent_registers_normally_when_no_existing_secret(monkeypatch):
 
     result = register.register_agent(
         control_plane_url="https://cplane.example.com",
+        provider="aws",
         token="tok",
         namespace="cogrion-system",
         dry_run=True,

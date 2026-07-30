@@ -113,8 +113,9 @@ SNAPSHOT_CRD_URLS = [
 ]
 
 # serviceAccount.create is false — terraform-cogrion-aws-eks-managed-node-group's
-# kubeblocks-irsa.tf already provisions kb-system and the kubeblocks/
-# kubeblocks-dataprotection-* ServiceAccounts with IRSA annotations.
+# kubeblocks-irsa.tf (or its Alicloud RRSA equivalent) already provisions
+# kb-system and the kubeblocks/kubeblocks-dataprotection-* ServiceAccounts
+# with the cloud-specific workload-identity annotations.
 _KUBEBLOCKS_VALUES_TEMPLATE = """\
 nodeSelector:
   nodegroup: system
@@ -126,17 +127,26 @@ backupRepo:
   create: false
   default: true
   accessMethod: Tool
-  storageProvider: "s3"
+  storageProvider: "{storage_provider}"
   pvReclaimPolicy: "Retain"
   volumeCapacity: ""
   config:
     bucket: {bucket}
-    endpoint: ""
+    endpoint: "{endpoint}"
     region: {region}
 """
 
 
-def make_kubeblocks(backup_bucket: str, backup_region: str) -> HelmAddon:
+def make_kubeblocks(backup_bucket: str, backup_region: str, provider: str) -> HelmAddon:
+    if provider == "aws":
+        storage_provider = "s3"
+        endpoint = ""
+    elif provider == "alicloud":
+        storage_provider = "oss"
+        endpoint = f"oss-{backup_region}.aliyuncs.com"
+    else:
+        raise ValueError(f"make_kubeblocks: unsupported provider {provider!r}")
+
     return HelmAddon(
         release_name="kubeblocks",
         namespace=KUBEBLOCKS_NAMESPACE,
@@ -144,6 +154,11 @@ def make_kubeblocks(backup_bucket: str, backup_region: str) -> HelmAddon:
         version=KUBEBLOCKS_VERSION,
         repo_name="kubeblocks",
         repo_url="https://apecloud.github.io/helm-charts",
-        values_yaml=_KUBEBLOCKS_VALUES_TEMPLATE.format(bucket=backup_bucket, region=backup_region),
+        values_yaml=_KUBEBLOCKS_VALUES_TEMPLATE.format(
+            storage_provider=storage_provider,
+            bucket=backup_bucket,
+            endpoint=endpoint,
+            region=backup_region,
+        ),
         detect=("deployment", "kubeblocks"),
     )

@@ -48,6 +48,8 @@ def test_installed_chart_parses_real_helm_get_metadata_output(monkeypatch):
 def test_needs_upgrade_false_for_real_kubeblocks_addon_against_real_schema(monkeypatch):
     monkeypatch.setattr(helm.subprocess, "run", _fake_run_real_metadata)
 
-    addon = make_kubeblocks(backup_bucket="w-prodsbx03-kb-backup", backup_region="ap-southeast-1")
+    addon = make_kubeblocks(
+        backup_bucket="w-prodsbx03-kb-backup", backup_region="ap-southeast-1", provider="aws"
+    )
 
     assert helm.needs_upgrade(addon) is False
