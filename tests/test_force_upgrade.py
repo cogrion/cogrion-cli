@@ -3,6 +3,7 @@ from cogrion_cli.bootstrap import runner
 
 def _run_kwargs(**overrides):
     kwargs = dict(
+        provider="aws",
         token="tok",
         cluster_name="qd-platform-test",
         region="ap-southeast-1",

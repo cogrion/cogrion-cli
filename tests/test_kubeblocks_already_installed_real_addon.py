@@ -23,6 +23,8 @@ def test_needs_upgrade_false_for_real_kubeblocks_addon_when_already_at_current_v
 
     monkeypatch.setattr(helm.subprocess, "run", fake_run)
 
-    addon = make_kubeblocks(backup_bucket="w-prodsbx03-kb-backup", backup_region="ap-southeast-1")
+    addon = make_kubeblocks(
+        backup_bucket="w-prodsbx03-kb-backup", backup_region="ap-southeast-1", provider="aws"
+    )
 
     assert helm.needs_upgrade(addon) is False

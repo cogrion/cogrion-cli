@@ -15,6 +15,7 @@ from .addons import (
 )
 from .constants import (
     CPLANE_AGENT_CHART,
+    CPLANE_AGENT_DEFAULT_SERVICE_ACCOUNT_NAME,
     COGRION_SYSTEM_NAMESPACE,
     ECR_PUBLIC_REGISTRY,
 )
@@ -167,6 +168,41 @@ def _ensure_s3_bucket(bucket: str, region: str, dry_run: bool) -> None:
     raise RuntimeError(f"[s3] failed to create bucket {bucket}:\n{result.stderr.strip()}")
 
 
+def _ensure_oss_bucket(bucket: str, region: str, dry_run: bool) -> None:
+    if dry_run:
+        console.print(f"[yellow]\\[oss] dry-run: ensure bucket {bucket} ({region})[/yellow]")
+        return
+    stat = subprocess.run(
+        ["aliyun", "oss", "stat", f"oss://{bucket}", "--region", region],
+        capture_output=True,
+        text=True,
+    )
+    if stat.returncode == 0:
+        console.print(f"\\[oss] bucket {bucket} already exists — adopting")
+        return
+    result = subprocess.run(
+        ["aliyun", "oss", "mb", f"oss://{bucket}", "--region", region],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        console.print(f"\\[oss] bucket {bucket} created")
+        return
+    if "BucketAlreadyExists" in result.stderr or "BucketAlreadyOwnedByYou" in result.stderr:
+        console.print(f"\\[oss] bucket {bucket} already exists — adopting")
+        return
+    raise RuntimeError(f"[oss] failed to create bucket {bucket}:\n{result.stderr.strip()}")
+
+
+def _ensure_backup_bucket(provider: str, bucket: str, region: str, dry_run: bool) -> None:
+    if provider == "aws":
+        _ensure_s3_bucket(bucket, region, dry_run=dry_run)
+    elif provider == "alicloud":
+        _ensure_oss_bucket(bucket, region, dry_run=dry_run)
+    else:
+        raise ValueError(f"_ensure_backup_bucket: unsupported provider {provider!r}")
+
+
 def _rollout_restart(deployment: str, namespace: str, dry_run: bool) -> None:
     if dry_run:
         console.print(
@@ -232,6 +268,12 @@ def _install_addons(addons: list[HelmAddon], dry_run: bool, force_upgrade: bool 
         )
 
 
+_BACKUP_BUCKET_SCHEME = {
+    "aws": "s3",
+    "alicloud": "oss",
+}
+
+
 def run(
     token: str,
     cluster_name: str,
@@ -246,9 +288,14 @@ def run(
     dry_run: bool,
     auto_approve: bool,
     skip_tls_verify: bool,
+    provider: str,
+    agent_service_account_name: str = CPLANE_AGENT_DEFAULT_SERVICE_ACCOUNT_NAME,
     force_register: bool = False,
     force_upgrade: bool = False,
 ) -> None:
+    if provider not in _BACKUP_BUCKET_SCHEME:
+        raise ValueError(f"run: unsupported provider {provider!r}")
+
     console.print()
     console.print("=" * 60)
     console.print("  Cogrion Cluster Bootstrap Plan")
@@ -258,7 +305,8 @@ def run(
     console.print(f"  Namespace (must exist): {COGRION_SYSTEM_NAMESPACE}")
     console.print("  Addons to install    : external-dns (+ dns-webhook), kubeblocks")
     console.print(
-        f"  KubeBlocks backups   : s3://{kubeblocks_backup_bucket} ({kubeblocks_backup_region})"
+        f"  KubeBlocks backups   : {_BACKUP_BUCKET_SCHEME[provider]}://{kubeblocks_backup_bucket} "
+        f"({kubeblocks_backup_region})"
     )
     console.print(f"  cplane-agent chart   : {agent_version}")
     console.print("=" * 60)
@@ -283,6 +331,7 @@ def run(
         skip_tls_verify=skip_tls_verify,
         cluster_name=cluster_name,
         region=region,
+        provider=provider,
         force_register=force_register,
     )
 
@@ -296,8 +345,12 @@ def run(
     addons = [make_external_dns(control_plane_url, webhook_tag=dns_webhook_tag)]
     _install_addons(addons, dry_run=dry_run, force_upgrade=force_upgrade)
 
-    _ensure_s3_bucket(kubeblocks_backup_bucket, kubeblocks_backup_region, dry_run=dry_run)
-    kubeblocks_addon = make_kubeblocks(kubeblocks_backup_bucket, kubeblocks_backup_region)
+    _ensure_backup_bucket(
+        provider, kubeblocks_backup_bucket, kubeblocks_backup_region, dry_run=dry_run
+    )
+    kubeblocks_addon = make_kubeblocks(
+        kubeblocks_backup_bucket, kubeblocks_backup_region, provider=provider
+    )
     if _should_upgrade(kubeblocks_addon, dry_run=dry_run, force_upgrade=force_upgrade):
         for url in SNAPSHOT_CRD_URLS:
             _apply_manifest_url(url, dry_run=dry_run)
@@ -313,6 +366,14 @@ def run(
 
     _ecr_login(region=region, dry_run=dry_run)
 
+    cloud_set_args = {}
+    if provider == "aws":
+        cloud_set_args["aws.region"] = region
+    elif provider == "alicloud":
+        cloud_set_args["alicloud.regionId"] = region
+    else:
+        raise ValueError(f"run: unsupported provider {provider!r}")
+
     cplane_agent_addon = HelmAddon(
         release_name="cplane-agent",
         namespace=COGRION_SYSTEM_NAMESPACE,
@@ -321,10 +382,10 @@ def run(
         set_args={
             "existingSecret": "cluster-agent-credentials",
             "serviceAccount.create": "false",
-            "serviceAccount.name": "cplane-agent",
+            "serviceAccount.name": agent_service_account_name,
             "tofu.backendBucket": tofu_backend_bucket,
             "tofu.backendRegion": tofu_backend_region,
-            "aws.region": region,
+            **cloud_set_args,
         },
     )
     _install_addons([cplane_agent_addon], dry_run=dry_run, force_upgrade=force_upgrade)

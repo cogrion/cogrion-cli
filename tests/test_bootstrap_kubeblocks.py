@@ -13,6 +13,7 @@ def test_run_forwards_force_register_to_register_agent(monkeypatch):
     monkeypatch.setattr(runner, "register_agent", fake_register_agent)
 
     runner.run(
+        provider="aws",
         token="fresh-tok",
         cluster_name="qd-platform-test",
         region="ap-southeast-1",
@@ -35,6 +36,7 @@ def test_run_forwards_force_register_to_register_agent(monkeypatch):
 
 def test_run_dry_run_installs_kubeblocks(capsys):
     runner.run(
+        provider="aws",
         token="tok",
         cluster_name="qd-platform-test",
         region="ap-southeast-1",
@@ -57,6 +59,7 @@ def test_run_dry_run_installs_kubeblocks(capsys):
 
 def test_run_dry_run_sets_cplane_agent_tofu_backend(capsys):
     runner.run(
+        provider="aws",
         token="tok",
         cluster_name="qd-platform-test",
         region="ap-southeast-1",
@@ -77,6 +80,7 @@ def test_run_dry_run_sets_cplane_agent_tofu_backend(capsys):
 
 def test_run_dry_run_restarts_kubeblocks_deployments(capsys):
     runner.run(
+        provider="aws",
         token="tok",
         cluster_name="qd-platform-test",
         region="ap-southeast-1",
