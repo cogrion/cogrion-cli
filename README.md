@@ -76,4 +76,25 @@ make test
 make lint
 ```
 
+### Releasing
+
+Version bumps and tags are separate PRs from the feature/fix work — the tag is what `pipx install ...@<tag>` above pins to.
+
+```bash
+# 1. Bump on a release branch, PR it, get it merged to main
+make bump-patch   # or bump-minor / bump-major
+cat VERSION       # confirm the new version, e.g. 1.1.0
+git checkout -b chore/release-1.1.0
+git add pyproject.toml VERSION CHANGELOG.md
+git commit -m "Release 1.1.0"
+git push -u origin chore/release-1.1.0
+# open PR, get it reviewed and merged into main
+
+# 2. Once the bump is merged, tag that commit on main and push the tag
+git checkout main
+git pull
+git tag v1.1.0
+git push origin v1.1.0
+```
+
 See [AGENTS.md](AGENTS.md) for repo conventions.

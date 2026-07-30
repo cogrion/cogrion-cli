@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (2026-07-30)
+## 1.1.0 (2026-07-30)
 
 - Add `--agent-service-account-name` to `cluster bootstrap`/`upgrade` (default `cplane-agent`, matching prior hardcoded behavior): sets `serviceAccount.name` on the `cplane-agent` Helm install, for clusters where the pre-provisioned IRSA/RRSA ServiceAccount uses a non-default name.
 - Add Alicloud (ACK) support to `cluster bootstrap`/`upgrade` via `--provider alicloud` (or `COGRION_PROVIDER` env var): KubeBlocks backups now target an OSS bucket (`storageProvider: oss`, `oss-{region}.aliyuncs.com` endpoint) instead of S3, and the `cplane-agent` install sets `alicloud.regionId` instead of `aws.region`. OIDC issuer discovery (needed for OpenBao/ESO trust) falls back to `aliyun cs DescribeClusterDetail`'s `rrsa_config.issuer` when not running in-cluster — on this provider `--cluster-name` must be the ACK cluster ID, not its display name, since that API only accepts the ID. `provider` is now a required, explicit parameter throughout `bootstrap/` (no silent `aws` default below the CLI layer).
