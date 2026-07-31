@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix `cluster bootstrap`/`upgrade` failing on `BucketAlreadyExists` when the KubeBlocks backup bucket already exists in another AWS account (S3 bucket names are globally unique, not per-account): `create-bucket` now treats `BucketAlreadyExists` the same as `BucketAlreadyOwnedByYou` and adopts instead of raising.
+
 ## 1.1.0 (2026-07-30)
 
 - Add `--agent-service-account-name` to `cluster bootstrap`/`upgrade` (default `cplane-agent`, matching prior hardcoded behavior): sets `serviceAccount.name` on the `cplane-agent` Helm install, for clusters where the pre-provisioned IRSA/RRSA ServiceAccount uses a non-default name.

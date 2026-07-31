@@ -162,7 +162,7 @@ def _ensure_s3_bucket(bucket: str, region: str, dry_run: bool) -> None:
     if result.returncode == 0:
         console.print(f"\\[s3] bucket {bucket} created")
         return
-    if "BucketAlreadyOwnedByYou" in result.stderr:
+    if "BucketAlreadyExists" in result.stderr or "BucketAlreadyOwnedByYou" in result.stderr:
         console.print(f"\\[s3] bucket {bucket} already exists — adopting")
         return
     raise RuntimeError(f"[s3] failed to create bucket {bucket}:\n{result.stderr.strip()}")
