@@ -31,7 +31,6 @@ def _patch_common(monkeypatch):
     monkeypatch.setattr(runner, "_install_addons", lambda *a, **k: None)
     monkeypatch.setattr(runner, "_ensure_s3_bucket", lambda *a, **k: None)
     monkeypatch.setattr(runner, "_apply_manifest_url", lambda *a, **k: None)
-    monkeypatch.setattr(runner, "_ecr_login", lambda *a, **k: None)
     monkeypatch.setattr(runner, "helm_apply", lambda *a, **k: None)
 
     restart_calls = []
