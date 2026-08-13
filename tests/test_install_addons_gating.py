@@ -86,7 +86,6 @@ def test_run_gates_cplane_agent_through_install_addons_style_check(monkeypatch):
     monkeypatch.setattr(runner, "_ensure_s3_bucket", lambda *a, **k: None)
     monkeypatch.setattr(runner, "_apply_manifest_url", lambda *a, **k: None)
     monkeypatch.setattr(runner, "_rollout_restart", lambda *a, **k: None)
-    monkeypatch.setattr(runner, "_ecr_login", lambda *a, **k: None)
     monkeypatch.setattr(runner, "ensure_helm_repos", lambda *a, **k: None)
     monkeypatch.setattr(runner, "is_externally_managed", lambda *a, **k: False)
     # Everything, including cplane-agent, reports already up to date.

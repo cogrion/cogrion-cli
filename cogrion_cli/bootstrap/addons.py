@@ -14,7 +14,7 @@ class HelmAddon:
     detect: tuple[str, str] | None = None
 
 
-DNS_WEBHOOK_IMAGE = "public.ecr.aws/quantdata/cogrion/dns-webhook"
+DNS_WEBHOOK_IMAGE = "harbor.sgp.prod.cogrion.com/public-ecr-proxy/quantdata/cogrion/dns-webhook"
 DNS_WEBHOOK_VERSION = "0.1.6"
 
 # external-dns with the dns-webhook sidecar. The sidecar proxies the

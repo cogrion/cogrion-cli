@@ -17,7 +17,6 @@ from .constants import (
     CPLANE_AGENT_CHART,
     CPLANE_AGENT_DEFAULT_SERVICE_ACCOUNT_NAME,
     COGRION_SYSTEM_NAMESPACE,
-    ECR_PUBLIC_REGISTRY,
 )
 from .helm import ensure_helm_repos, helm_apply, is_externally_managed, needs_upgrade
 from .register import register_agent
@@ -86,28 +85,6 @@ def _copy_secret_to_namespace(
             f"{apply.stderr.strip()}"
         )
     console.print(f"\\[kubectl] secret {secret_name} copied to namespace {dst_namespace}")
-
-
-def _ecr_login(region: str, dry_run: bool) -> None:
-    console.print(f"\\[ecr] logging in to {ECR_PUBLIC_REGISTRY}")
-    if dry_run:
-        console.print("[yellow]\\[ecr] dry-run: skipping login[/yellow]")
-        return
-    token = subprocess.run(
-        ["aws", "ecr-public", "get-login-password", "--region", "us-east-1"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    result = subprocess.run(
-        ["helm", "registry", "login", ECR_PUBLIC_REGISTRY, "--username", "AWS", "--password-stdin"],
-        input=token,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"[ecr] helm registry login failed:\n{result.stderr.strip()}")
-    console.print("\\[ecr] login successful")
 
 
 def _should_upgrade(addon: HelmAddon, dry_run: bool, force_upgrade: bool) -> bool:
@@ -363,8 +340,6 @@ def run(
             f"\\[kubeblocks] already at version {kubeblocks_addon.version} — "
             "skipping CRD re-apply, helm upgrade, and rollout restart"
         )
-
-    _ecr_login(region=region, dry_run=dry_run)
 
     cloud_set_args = {}
     if provider == "aws":
