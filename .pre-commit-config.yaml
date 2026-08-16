@@ -1,0 +1,16 @@
+repos:
+  - repo: local
+    hooks:
+      - id: black
+        name: black
+        entry: uv run black cogrion_cli tests
+        language: system
+        pass_filenames: false
+        files: \.py$
+
+      - id: pytest
+        name: pytest
+        entry: uv run pytest tests/
+        language: system
+        pass_filenames: false
+        files: \.py$

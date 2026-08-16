@@ -341,11 +341,17 @@ def run(
             "skipping CRD re-apply, helm upgrade, and rollout restart"
         )
 
+    # agent.provider lets tofu-run.ts know, once per deployment (not per
+    # resource), whether it needs to exchange RRSA for STS credentials
+    # before `tofu init` — Alicloud's oss backend has no OIDC support,
+    # unlike AWS's s3 backend. Mirrors KCL's t.CloudProviderEnum values.
     cloud_set_args = {}
     if provider == "aws":
         cloud_set_args["aws.region"] = region
+        cloud_set_args["agent.provider"] = "AWS_EKS"
     elif provider == "alicloud":
         cloud_set_args["alicloud.regionId"] = region
+        cloud_set_args["agent.provider"] = "ALICLOUD_ACK"
     else:
         raise ValueError(f"run: unsupported provider {provider!r}")
 

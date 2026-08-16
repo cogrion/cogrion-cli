@@ -4,6 +4,8 @@
 
 - Move `cplane-agent` chart and `dns-webhook` image off direct `public.ecr.aws` to Harbor's `public-ecr-proxy` mirror (`harbor.sgp.prod.cogrion.com/public-ecr-proxy/...`) — direct AWS public-ECR access is being retired. Removes `_ecr_login` (`aws ecr-public get-login-password` + `helm registry login`) entirely: it was called unconditionally regardless of provider, which meant `cluster bootstrap`/`upgrade` on Alicloud would always fail at the `cplane-agent` install step (no `aws` CLI/credentials on non-AWS bootstrap pods). Harbor's proxy pulls anonymously, so no login step is needed for any provider.
 - Fix `cluster bootstrap`/`upgrade` failing on `BucketAlreadyExists` when the KubeBlocks backup bucket already exists in another AWS account (S3 bucket names are globally unique, not per-account): `create-bucket` now treats `BucketAlreadyExists` the same as `BucketAlreadyOwnedByYou` and adopts instead of raising.
+- Set `agent.provider` (`AWS_EKS`/`ALICLOUD_ACK`) on the `cplane-agent` Helm install, alongside the existing `aws.region`/`alicloud.regionId` set-args. `tofu-run.ts` needs this as a once-per-deployment signal for whether it must exchange RRSA for STS credentials before `tofu init` — Alicloud's `oss` remote-state backend has no native OIDC support, unlike AWS's `s3` backend.
+- Add `.pre-commit-config.yaml` (black + pytest) and wire `pre-commit install` into `make install` — `make precommit` existed but was never actually hooked into `git commit`, so it silently ran zero checks unless remembered manually.
 
 ## 1.1.0 (2026-07-30)
 

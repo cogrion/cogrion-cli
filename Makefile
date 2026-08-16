@@ -16,8 +16,9 @@ help: ## Show this help message
 version: ## Show current version
 	@echo "$(COLOR_YELLOW)$(VERSION)$(COLOR_RESET)"
 
-install: ## Install all dependencies
+install: ## Install all dependencies and wire up git hooks
 	uv sync
+	@command -v pre-commit >/dev/null 2>&1 && pre-commit install || echo "pre-commit not found — install it, then run 'pre-commit install'"
 
 test: ## Run tests
 	uv run pytest tests/ -v
