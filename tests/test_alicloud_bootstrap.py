@@ -97,6 +97,7 @@ def test_run_uses_alicloud_regionid_set_arg_for_cplane_agent(capsys):
     )
     out = capsys.readouterr().out.lower()
     assert "alicloud.regionid=ap-southeast-7" in out
+    assert "agent.provider=alicloud_ack" in out
     assert "aws.region" not in out
     assert "oss://w-test-kb-backup" in out
 

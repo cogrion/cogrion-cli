@@ -46,15 +46,11 @@ def test_no_ecr_login_symbol_left_in_runner():
 
 def test_cplane_agent_chart_pulled_through_harbor_proxy(monkeypatch):
     assert "public.ecr.aws" not in CPLANE_AGENT_CHART
-    assert CPLANE_AGENT_CHART.startswith(
-        "oci://harbor.sgp.prod.cogrion.com/public-ecr-proxy/"
-    )
+    assert CPLANE_AGENT_CHART.startswith("oci://harbor.sgp.prod.cogrion.com/public-ecr-proxy/")
 
     _patch_common(monkeypatch)
     installed = []
-    monkeypatch.setattr(
-        runner, "_install_addons", lambda addons, **k: installed.extend(addons)
-    )
+    monkeypatch.setattr(runner, "_install_addons", lambda addons, **k: installed.extend(addons))
 
     runner.run(**_run_kwargs(provider="alicloud"))
 
