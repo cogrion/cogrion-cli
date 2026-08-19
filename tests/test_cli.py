@@ -38,6 +38,7 @@ def test_cluster_bootstrap_help_lists_new_options():
     assert result.exit_code == 0
     assert "--tofu-backend-bucket" in result.output
     assert "--kubeblocks-backup-bucket" in result.output
+    assert "--agent-replica-count" in result.output
 
 
 def test_cluster_upgrade_help_lists_new_options():
@@ -45,3 +46,4 @@ def test_cluster_upgrade_help_lists_new_options():
     assert result.exit_code == 0
     assert "--tofu-backend-bucket" in result.output
     assert "--kubeblocks-backup-bucket" in result.output
+    assert "--agent-replica-count" in result.output

@@ -51,6 +51,8 @@ Both accept `--dry-run` to preview every action with no cloud/kubectl/helm calls
 
 `--agent-service-account-name` (default `cplane-agent`) sets the pre-provisioned ServiceAccount the `cplane-agent` release runs as — override it if your cluster's IRSA/RRSA setup uses a different name.
 
+`--agent-replica-count` (default `2`) sets the number of `cplane-agent` pod replicas.
+
 Select the target with `--provider` (or the `COGRION_PROVIDER` environment variable), default `aws`:
 
 | Provider | Status |
