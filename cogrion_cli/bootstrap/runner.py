@@ -15,7 +15,9 @@ from .addons import (
 )
 from .constants import (
     CPLANE_AGENT_CHART,
+    CPLANE_AGENT_DEFAULT_REPLICA_COUNT,
     CPLANE_AGENT_DEFAULT_SERVICE_ACCOUNT_NAME,
+    CPLANE_AGENT_MIN_REPLICA_COUNT,
     COGRION_SYSTEM_NAMESPACE,
 )
 from .helm import ensure_helm_repos, helm_apply, is_externally_managed, needs_upgrade
@@ -267,11 +269,17 @@ def run(
     skip_tls_verify: bool,
     provider: str,
     agent_service_account_name: str = CPLANE_AGENT_DEFAULT_SERVICE_ACCOUNT_NAME,
+    agent_replica_count: int = CPLANE_AGENT_DEFAULT_REPLICA_COUNT,
     force_register: bool = False,
     force_upgrade: bool = False,
 ) -> None:
     if provider not in _BACKUP_BUCKET_SCHEME:
         raise ValueError(f"run: unsupported provider {provider!r}")
+    if agent_replica_count < CPLANE_AGENT_MIN_REPLICA_COUNT:
+        raise ValueError(
+            f"run: --agent-replica-count must be >= {CPLANE_AGENT_MIN_REPLICA_COUNT} "
+            f"(got {agent_replica_count})"
+        )
 
     console.print()
     console.print("=" * 60)
@@ -286,6 +294,7 @@ def run(
         f"({kubeblocks_backup_region})"
     )
     console.print(f"  cplane-agent chart   : {agent_version}")
+    console.print(f"  cplane-agent replicas: {agent_replica_count}")
     console.print("=" * 60)
     console.print()
 
@@ -364,6 +373,7 @@ def run(
             "existingSecret": "cluster-agent-credentials",
             "serviceAccount.create": "false",
             "serviceAccount.name": agent_service_account_name,
+            "replicaCount": str(agent_replica_count),
             "tofu.backendBucket": tofu_backend_bucket,
             "tofu.backendRegion": tofu_backend_region,
             **cloud_set_args,

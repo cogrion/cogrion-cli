@@ -4,6 +4,7 @@ from rich.console import Console
 from cogrion_cli.bootstrap import runner
 from cogrion_cli.bootstrap.addons import DNS_WEBHOOK_VERSION
 from cogrion_cli.bootstrap.constants import (
+    CPLANE_AGENT_DEFAULT_REPLICA_COUNT,
     CPLANE_AGENT_DEFAULT_SERVICE_ACCOUNT_NAME,
     CPLANE_AGENT_DEFAULT_VERSION,
     CPLANE_API_URL,
@@ -29,6 +30,7 @@ def _run_bootstrap(
     control_plane_url: str,
     agent_version: str,
     agent_service_account_name: str,
+    agent_replica_count: int,
     dns_webhook_tag: str,
     kubeblocks_backup_bucket: str | None,
     kubeblocks_backup_region: str | None,
@@ -48,6 +50,7 @@ def _run_bootstrap(
         control_plane_url=control_plane_url,
         agent_version=agent_version,
         agent_service_account_name=agent_service_account_name,
+        agent_replica_count=agent_replica_count,
         dns_webhook_tag=dns_webhook_tag,
         kubeblocks_backup_bucket=kubeblocks_backup_bucket or f"{cluster_name}-kb-backup",
         kubeblocks_backup_region=kubeblocks_backup_region or region,
@@ -103,6 +106,11 @@ def bootstrap(
         "--agent-service-account-name",
         help="Name of the pre-provisioned ServiceAccount (IRSA/RRSA) for cplane-agent",
     ),
+    agent_replica_count: int = typer.Option(
+        CPLANE_AGENT_DEFAULT_REPLICA_COUNT,
+        "--agent-replica-count",
+        help="Number of cluster agent replicas",
+    ),
     dns_webhook_tag: str = typer.Option(
         DNS_WEBHOOK_VERSION, "--dns-webhook-tag", help="Image tag for the dns-webhook sidecar"
     ),
@@ -153,6 +161,7 @@ def bootstrap(
         control_plane_url=control_plane_url,
         agent_version=agent_version,
         agent_service_account_name=agent_service_account_name,
+        agent_replica_count=agent_replica_count,
         dns_webhook_tag=dns_webhook_tag,
         kubeblocks_backup_bucket=kubeblocks_backup_bucket,
         kubeblocks_backup_region=kubeblocks_backup_region,
@@ -191,6 +200,11 @@ def upgrade(
         CPLANE_AGENT_DEFAULT_SERVICE_ACCOUNT_NAME,
         "--agent-service-account-name",
         help="Name of the pre-provisioned ServiceAccount (IRSA/RRSA) for cplane-agent",
+    ),
+    agent_replica_count: int = typer.Option(
+        CPLANE_AGENT_DEFAULT_REPLICA_COUNT,
+        "--agent-replica-count",
+        help="Number of cplane-agent replicas",
     ),
     dns_webhook_tag: str = typer.Option(
         DNS_WEBHOOK_VERSION, "--dns-webhook-tag", help="Image tag for the dns-webhook sidecar"
@@ -259,6 +273,7 @@ def upgrade(
         control_plane_url=control_plane_url,
         agent_version=agent_version,
         agent_service_account_name=agent_service_account_name,
+        agent_replica_count=agent_replica_count,
         dns_webhook_tag=dns_webhook_tag,
         kubeblocks_backup_bucket=kubeblocks_backup_bucket,
         kubeblocks_backup_region=kubeblocks_backup_region,

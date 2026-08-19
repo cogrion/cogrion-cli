@@ -102,6 +102,70 @@ def test_run_uses_alicloud_regionid_set_arg_for_cplane_agent(capsys):
     assert "oss://w-test-kb-backup" in out
 
 
+def test_run_defaults_cplane_agent_to_two_replicas(capsys):
+    runner.run(
+        provider="alicloud",
+        token="tok",
+        cluster_name="c50f7af290a5a458698e0c3c9934de15d",
+        region="ap-southeast-7",
+        control_plane_url="https://cplane.example.com",
+        agent_version="0.1.0",
+        dns_webhook_tag="0.1.0",
+        dry_run=True,
+        auto_approve=True,
+        skip_tls_verify=False,
+        kubeblocks_backup_bucket="w-test-kb-backup",
+        kubeblocks_backup_region="ap-southeast-7",
+        tofu_backend_bucket="w-test-tfstate",
+        tofu_backend_region="ap-southeast-7",
+    )
+    out = capsys.readouterr().out.lower()
+    assert "replicacount=2" in out
+
+
+def test_run_passes_agent_replica_count_to_cplane_agent_set_args(capsys):
+    runner.run(
+        provider="alicloud",
+        token="tok",
+        cluster_name="c50f7af290a5a458698e0c3c9934de15d",
+        region="ap-southeast-7",
+        control_plane_url="https://cplane.example.com",
+        agent_version="0.1.0",
+        dns_webhook_tag="0.1.0",
+        dry_run=True,
+        auto_approve=True,
+        skip_tls_verify=False,
+        kubeblocks_backup_bucket="w-test-kb-backup",
+        kubeblocks_backup_region="ap-southeast-7",
+        tofu_backend_bucket="w-test-tfstate",
+        tofu_backend_region="ap-southeast-7",
+        agent_replica_count=3,
+    )
+    out = capsys.readouterr().out.lower()
+    assert "replicacount=3" in out
+
+
+def test_run_rejects_replica_count_below_minimum():
+    with pytest.raises(ValueError):
+        runner.run(
+            provider="alicloud",
+            token="tok",
+            cluster_name="c",
+            region="ap-southeast-7",
+            control_plane_url="https://cplane.example.com",
+            agent_version="0.1.0",
+            dns_webhook_tag="0.1.0",
+            dry_run=True,
+            auto_approve=True,
+            skip_tls_verify=False,
+            kubeblocks_backup_bucket="b",
+            kubeblocks_backup_region="ap-southeast-7",
+            tofu_backend_bucket="b",
+            tofu_backend_region="ap-southeast-7",
+            agent_replica_count=0,
+        )
+
+
 def test_run_rejects_unsupported_provider():
     with pytest.raises(ValueError):
         runner.run(
