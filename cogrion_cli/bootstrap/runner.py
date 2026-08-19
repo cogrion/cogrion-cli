@@ -374,6 +374,12 @@ def run(
             "serviceAccount.create": "false",
             "serviceAccount.name": agent_service_account_name,
             "replicaCount": str(agent_replica_count),
+            # autoscaling.enabled defaults to true in the chart, and the HPA
+            # continuously reconciles spec.replicas back down to minReplicas
+            # once installed — replicaCount alone only sets the *initial*
+            # count on first install, so minReplicas must move with it or
+            # the HPA silently floors us back to its own default (1).
+            "autoscaling.minReplicas": str(agent_replica_count),
             "tofu.backendBucket": tofu_backend_bucket,
             "tofu.backendRegion": tofu_backend_region,
             **cloud_set_args,

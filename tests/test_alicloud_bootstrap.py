@@ -121,6 +121,7 @@ def test_run_defaults_cplane_agent_to_two_replicas(capsys):
     )
     out = capsys.readouterr().out.lower()
     assert "replicacount=2" in out
+    assert "autoscaling.minreplicas=2" in out
 
 
 def test_run_passes_agent_replica_count_to_cplane_agent_set_args(capsys):
