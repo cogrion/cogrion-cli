@@ -96,3 +96,28 @@ def test_register_agent_registers_normally_when_no_existing_secret(monkeypatch):
     )
 
     assert result.skipped is True
+
+
+def test_post_json_sends_non_default_user_agent(monkeypatch):
+    captured = {}
+
+    class _Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            return b"{}"
+
+    def fake_urlopen(req, timeout, context):
+        captured["headers"] = {k.lower(): v for k, v in req.header_items()}
+        return _Resp()
+
+    monkeypatch.setattr(register.urllib.request, "urlopen", fake_urlopen)
+
+    register._post_json("https://cplane.example/api/v1/agent/register", {})
+
+    assert captured["headers"]["user-agent"] == register.USER_AGENT
+    assert not captured["headers"]["user-agent"].startswith("Python-urllib")

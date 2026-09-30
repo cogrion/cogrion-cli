@@ -8,3 +8,5 @@ CPLANE_AGENT_DEFAULT_REPLICA_COUNT = 2
 CPLANE_API_URL = "https://cplane.api.cogrion.com"
 
 COGRION_SYSTEM_NAMESPACE = "cogrion-system"
+
+USER_AGENT = "cogrion-cli"

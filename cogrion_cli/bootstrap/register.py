@@ -9,6 +9,8 @@ import urllib.error
 from dataclasses import dataclass
 from typing import Optional
 
+from cogrion_cli.bootstrap.constants import USER_AGENT
+
 SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 
 
@@ -112,7 +114,10 @@ class RegistrationResult:
 def _post_json(url: str, payload: dict, skip_tls_verify: bool = False) -> dict:
     data = json.dumps(payload).encode()
     req = urllib.request.Request(
-        url, data=data, headers={"Content-Type": "application/json"}, method="POST"
+        url,
+        data=data,
+        headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
+        method="POST",
     )
     ctx = ssl.create_default_context()
     if skip_tls_verify:
